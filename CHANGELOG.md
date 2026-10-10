@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.11.1 — 2026-10-10
+- Fix: las manos no cambiaban (salían las default o se quedaban las de la skin anterior). Ahora el cliente siempre manda las manos de su skin, también las de modelos registrados por Lua, y el server las pone con el hook `PlayerSetHandsModel`, así sobreviven cuando el gamemode rearma las manos.
+
 ## v0.11.0 — 2026-10-10
 - Fix: `!skin` ahora funciona en Murder estando vivo (Murder reenvía el chat de los vivos; ahora lo detecta el server antes que el gamemode). También `/skin`.
 - Si los demás no pueden descargar tu skin (addon privado, sin tag Model o de más de 300 MB), te avisa en el chat en vez de fallar en silencio.

@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.11.0"
+local VERSION = "0.11.1"
 print("SkinShare v" .. VERSION)
 
 local MAX_SIZE = 300 * 1024 * 1024
@@ -92,13 +92,18 @@ if SERVER then
 		ply:SetPlayerColor(s.col)
 		ply:SetWeaponColor(s.wcol)
 		if ply.SetupHands then ply:SetupHands() end
-		-- las manos que registra el addon del cliente no existen aquí (su Lua no corre): se usan las *_arms.mdl que mandó
-		local hands = ply:GetHands()
-		if s.arms ~= "" and IsValid(hands) and file.Exists(s.arms, "GAME") then
-			hands:SetModel(s.arms) hands:SetSkin(0) hands:SetBodyGroups("0000000")
-		end
 		return true
 	end
+
+	-- manos: el cliente manda las de su skin (el Lua que las registra no corre aquí).
+	-- Con el hook sirve también cuando el gamemode rearma las manos (respawn, ronda nueva).
+	hook.Add("PlayerSetHandsModel", "skinshare", function(ply, ent)
+		local s = active(ply)
+		if s and s.arms ~= "" and file.Exists(s.arms, "GAME") then
+			ent:SetModel(s.arms) ent:SetSkin(0) ent:SetBodyGroups("0000000")
+			return true
+		end
+	end)
 
 	local function color(v)
 		return Vector(math.Clamp(v.x, 0, 1), math.Clamp(v.y, 0, 1), math.Clamp(v.z, 0, 1))
@@ -237,8 +242,13 @@ end
 
 -- brazos del viewmodel para skins cuyo Lua no corre aquí: <modelo>_arms.mdl o c_arms*.mdl de su mismo addon
 local function armsFor(mdl, wsid)
-	for _, v in pairs(player_manager.AllValidModels()) do
-		if v:lower() == mdl then return "" end -- registrado: SetupHands ya pone las manos correctas
+	-- registrado por el Lua del addon (solo corrió en este cliente, el server no lo conoce): sus manos
+	for name, v in pairs(player_manager.AllValidModels()) do
+		if v:lower() == mdl then
+			local info = player_manager.TranslatePlayerHands(name)
+			if info and info.model and info.model ~= "models/weapons/c_arms_citizen.mdl" then return info.model:lower() end
+			break
+		end
 	end
 	local arms = string.StripExtension(mdl) .. "_arms.mdl"
 	if file.Exists(arms, "GAME") then return arms end

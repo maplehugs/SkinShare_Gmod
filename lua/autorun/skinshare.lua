@@ -12,7 +12,7 @@ end
 
 if SERVER then
 	util.AddNetworkString("skinshare")
-	local skins = {} -- [steamid64] = {wsid, mdl}
+	local skins = {} -- [steamid64] = {wsid, mdl, skin, bg, col}
 
 	local function send(ply, s, to)
 		net.Start("skinshare")
@@ -22,11 +22,17 @@ if SERVER then
 
 	local function apply(ply)
 		local s = skins[ply:SteamID64()]
-		if s and file.Exists(s.mdl, "GAME") then ply:SetModel(s.mdl) return true end
+		if not (s and file.Exists(s.mdl, "GAME")) then return end
+		ply:SetModel(s.mdl)
+		ply:SetSkin(math.min(s.skin, ply:SkinCount() - 1))
+		ply:SetPlayerColor(s.col)
+		local i = 0
+		for v in s.bg:gmatch("%d+") do ply:SetBodygroup(i, tonumber(v)) i = i + 1 end
+		return true
 	end
 
 	net.Receive("skinshare", function(_, ply)
-		local wsid, mdl = net.ReadString(), net.ReadString()
+		local wsid = net.ReadString()
 
 		if wsid == "" then -- recién conectado: mándale las skins actuales
 			for _, p in ipairs(player.GetAll()) do
@@ -38,9 +44,12 @@ if SERVER then
 
 		if (ply.skinshareNext or 0) > CurTime() then return end
 		ply.skinshareNext = CurTime() + 5
+		local mdl, skin, bg, col = net.ReadString(), net.ReadUInt(8), net.ReadString(), net.ReadVector()
 		if not wsid:match("^%d+$") or not mdl:match("^models/[%w_%-%./]+%.mdl$") or mdl:find("..", 1, true) then return end
+		if #bg > 255 or not bg:match("^[%d ]*$") then return end
+		col = Vector(math.Clamp(col.x, 0, 1), math.Clamp(col.y, 0, 1), math.Clamp(col.z, 0, 1))
 
-		local s = { wsid = wsid, mdl = mdl }
+		local s = { wsid = wsid, mdl = mdl, skin = skin, bg = bg, col = col }
 		skins[ply:SteamID64()] = s
 		send(ply, s)
 		-- listen server: el cliente del host monta el GMA y comparte filesystem con el server
@@ -61,8 +70,12 @@ if SERVER then
 	return
 end
 
-local function choose(wsid, mdl)
-	net.Start("skinshare") net.WriteString(wsid) net.WriteString(mdl) net.SendToServer()
+local function choose(wsid, mdl, skin, bg, col)
+	net.Start("skinshare") net.WriteString(wsid)
+	if wsid ~= "" then
+		net.WriteString(mdl) net.WriteUInt(skin, 8) net.WriteString(bg) net.WriteVector(col)
+	end
+	net.SendToServer()
 end
 
 net.Receive("skinshare", function()
@@ -73,7 +86,7 @@ net.Receive("skinshare", function()
 	end)
 end)
 
-hook.Add("InitPostEntity", "skinshare", function() choose("", "") end)
+hook.Add("InitPostEntity", "skinshare", function() choose("") end)
 
 -- mismo truco que duplicator.FigureOutRequiredAddons
 local function addonFor(mdl)
@@ -83,37 +96,74 @@ local function addonFor(mdl)
 	return "0"
 end
 
--- interfaz al estilo Enhanced PlayerModel Selector: preview a la izquierda, iconos a la derecha
+local function slider(parent, label, max, val, onChange)
+	local s = parent:Add("DNumSlider")
+	s:Dock(TOP) s:SetText(label) s:SetDark(true) s:SetDecimals(0) s:SetMinMax(0, max) s:SetValue(val)
+	s.OnValueChanged = function(_, v) onChange(math.Round(v)) end
+end
+
+-- interfaz al estilo Enhanced PlayerModel Selector: preview a la izquierda, pestañas a la derecha
 concommand.Add("skinshare", function()
+	local me = LocalPlayer()
 	local f = vgui.Create("DFrame")
 	f:SetSize(math.min(ScrW() - 16, 960), math.min(ScrH() - 16, 700)) f:Center()
 	f:SetTitle("SkinShare") f:MakePopup()
 
 	local right = f:Add("DPanel")
 	right:Dock(RIGHT) right:SetWide(f:GetWide() * 0.45)
-	local search = right:Add("DTextEntry")
-	search:Dock(TOP) search:SetPlaceholderText("Buscar...") search:SetUpdateOnType(true)
 	local btn = right:Add("DButton")
-	btn:Dock(BOTTOM) btn:SetTall(32) btn:SetText("Usar y compartir") btn:SetEnabled(false)
-	local scroll = right:Add("DScrollPanel")
+	btn:Dock(BOTTOM) btn:SetTall(32) btn:SetText("Usar y compartir")
+	local sheet = right:Add("DPropertySheet")
+	sheet:Dock(FILL)
+
+	-- Modelos
+	local models = vgui.Create("DPanel")
+	local search = models:Add("DTextEntry")
+	search:Dock(TOP) search:SetPlaceholderText("Buscar...") search:SetUpdateOnType(true)
+	local scroll = models:Add("DScrollPanel")
 	scroll:Dock(FILL)
 	local grid = scroll:Add("DIconLayout")
 	grid:Dock(FILL) grid:SetSpaceX(4) grid:SetSpaceY(4)
+	sheet:AddSheet("Modelos", models, "icon16/user.png")
+
+	-- Bodygroups y skin
+	local bgPanel = vgui.Create("DScrollPanel")
+	bgPanel:DockPadding(8, 8, 8, 8)
+	local bgTab = sheet:AddSheet("Bodygroups", bgPanel, "icon16/group.png").Tab
+
+	-- Color
+	local mixer = vgui.Create("DColorMixer")
+	mixer:SetAlphaBar(false) mixer:SetPalette(false) mixer:SetVector(me:GetPlayerColor())
+	sheet:AddSheet("Color", mixer, "icon16/color_wheel.png")
 
 	local preview = f:Add("DModelPanel") -- su LayoutEntity por defecto ya lo hace girar
 	preview:Dock(FILL) preview:SetFOV(36) preview:SetAnimated(true)
 	preview:SetCamPos(Vector(0, 0, 0)) preview:SetLookAt(Vector(-100, 0, -22))
 
-	local selected
-	local function pick(mdl)
-		selected = mdl
+	local sel = {}
+	local function pick(mdl, skin, bgs)
+		sel = { mdl = mdl, skin = skin or 0, bg = bgs or {} }
 		preview:SetModel(mdl)
 		local ent = preview.Entity
 		ent:SetPos(Vector(-100, 0, -61))
-		ent.GetPlayerColor = function() return LocalPlayer():GetPlayerColor() end
+		ent.GetPlayerColor = function() return mixer:GetVector() end
 		local seq = ent:LookupSequence("idle_all_01")
 		if seq > 0 then ent:ResetSequence(seq) end
-		btn:SetEnabled(true)
+
+		bgPanel:Clear()
+		ent:SetSkin(sel.skin)
+		if ent:SkinCount() > 1 then
+			slider(bgPanel, "Skin", ent:SkinCount() - 1, sel.skin, function(v) sel.skin = v ent:SetSkin(v) end)
+		end
+		for i = 0, ent:GetNumBodyGroups() - 1 do
+			sel.bg[i] = sel.bg[i] or 0
+			ent:SetBodygroup(i, sel.bg[i])
+			if ent:GetBodygroupCount(i) > 1 then
+				slider(bgPanel, ent:GetBodygroupName(i), ent:GetBodygroupCount(i) - 1, sel.bg[i], function(v) sel.bg[i] = v ent:SetBodygroup(i, v) end)
+			end
+		end
+		bgTab:SetVisible(#bgPanel:GetCanvas():GetChildren() > 0)
+		sheet.tabScroller:InvalidateLayout(true)
 	end
 
 	local function populate()
@@ -129,10 +179,15 @@ concommand.Add("skinshare", function()
 	end
 	search.OnValueChange = populate
 	populate()
-	pick(LocalPlayer():GetModel())
+
+	local cur = {}
+	for i = 0, me:GetNumBodyGroups() - 1 do cur[i] = me:GetBodygroup(i) end
+	pick(me:GetModel(), me:GetSkin(), cur)
 
 	btn.DoClick = function()
-		choose(addonFor(selected), selected)
+		local bg = {}
+		for i = 0, preview.Entity:GetNumBodyGroups() - 1 do bg[#bg + 1] = sel.bg[i] or 0 end
+		choose(addonFor(sel.mdl), sel.mdl, sel.skin, table.concat(bg, " "), mixer:GetVector())
 		f:Close()
 	end
 end)

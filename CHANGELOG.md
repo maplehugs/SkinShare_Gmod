@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.3.0 — 2026-10-09
+- Pestañas Bodygroups/Skin y Color. El server los aplica y se mantienen al respawnear.
+
 ## v0.2.0 — 2026-10-09
 - Selector con preview 3D, cuadrícula de iconos y buscador (al estilo Enhanced PlayerModel Selector).
 - El addon de origen se detecta solo. Los modelos del juego base se comparten sin descargar nada.

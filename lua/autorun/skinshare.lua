@@ -1,14 +1,27 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.7.1"
+local VERSION = "0.8.0"
 print("SkinShare v" .. VERSION)
 
-local function mount(wsid, cb)
-	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
+local MAX_SIZE = 300 * 1024 * 1024
+
+local function download(wsid, cb)
 	steamworks.DownloadUGC(wsid, function(path)
 		if not path then return end
 		local ok, files = game.MountGMA(path)
 		if ok then cb(files) end
+	end)
+end
+
+local function mount(wsid, cb)
+	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
+	if not steamworks.FileInfo then return download(wsid, cb) end
+	-- cualquiera puede pedir una skin: solo se montan items con tag Model y de tamaño razonable,
+	-- para que nadie obligue a todos a montar un pack que reemplace texturas o sonidos
+	steamworks.FileInfo(wsid, function(info)
+		if not info or not tostring(info.tags or ""):lower():find("model", 1, true) then return end
+		if (tonumber(info.size) or 0) > MAX_SIZE then return end
+		download(wsid, cb)
 	end)
 end
 
@@ -24,7 +37,9 @@ local MDL = "^models/[%w_%-%./]+%.mdl$"
 if SERVER then
 	util.AddNetworkString("skinshare")
 	util.AddNetworkString("skinshare_ack")
-	local skins = {} -- [steamid64] = {wsid, mdl, arms, skin, bg, flex, col, wcol, waiting, ready}
+	-- global para que sobreviva si el Lua se recarga en caliente (si no, todos vuelven al modelo default)
+	SkinShareSkins = SkinShareSkins or {}
+	local skins = SkinShareSkins -- [steamid64] = {wsid, mdl, arms, skin, bg, flex, col, wcol, waiting, ready}
 
 	local function send(ply, s, to)
 		net.Start("skinshare")
@@ -157,6 +172,12 @@ if SERVER then
 	-- después del gamemode (TTT/Sandbox ponen modelo y color en PlayerSpawn)
 	hook.Add("PlayerSpawn", "skinshare", function(ply)
 		timer.Simple(0, function() if IsValid(ply) then apply(ply) end end)
+	end)
+
+	-- TTT repone el color al empezar cada ronda sin respawnear (SpawnForRound)
+	hook.Add("TTTPlayerSetColor", "skinshare", function(ply)
+		local s = active(ply)
+		if s then ply:SetPlayerColor(s.col) return true end
 	end)
 
 	hook.Add("PlayerDisconnected", "skinshare", function(ply) skins[ply:SteamID64()] = nil end)

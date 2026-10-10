@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.0 — 2026-10-09
+- Fix: las skins ya no se pierden si el Lua se recarga en caliente (la tabla del server ahora es global).
+- Fix: TTT ya no pisa tu color al empezar cada ronda (hook `TTTPlayerSetColor`).
+- Seguridad: solo se montan items del Workshop con tag Model y de hasta 300 MB.
+
 ## v0.7.1 — 2026-10-09
 - Fix: Quitar skin ya no deja a los jugadores negros fuera de Sandbox (`cl_playercolor` solo existe ahí).
 - Fix: el ack incluye el modelo, así que un ack de una skin anterior ya no libera la nueva antes de tiempo.

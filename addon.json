@@ -1,5 +1,5 @@
 {
-	"title": "SkinShare - Better Skin Selector (!skin)",
+	"title": "SkinShare - Playermodel Selector & Sharing (!skin)",
 	"type": "tool",
 	"tags": ["fun", "roleplay"],
 	"ignore": ["*.md", ".git*", "workshop/*", "lua/autorun/server/loadingurl.lua"]

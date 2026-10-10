@@ -1,7 +1,8 @@
 # Adds image previews to a Workshop item, or sets its description, via the Steamworks flat API.
 # usage: SteamAppId=4000 python3 previews.py <libsteam_api.so> <appid> <fileid> img1.jpg [img2.jpg ...]
 #        SteamAppId=4000 python3 previews.py <libsteam_api.so> <appid> <fileid> --desc description.txt
-import ctypes as C, sys, time
+#        SteamAppId=4000 python3 previews.py <libsteam_api.so> <appid> <fileid> --remove <count>   (deletes the first <count> previews)
+import ctypes as C, os, sys, time
 
 lib = C.CDLL(sys.argv[1])
 appid, fileid, images = int(sys.argv[2]), int(sys.argv[3]), sys.argv[4:]
@@ -29,13 +30,20 @@ lib.SteamAPI_ISteamUtils_GetAPICallResult.restype = C.c_bool
 
 lib.SteamAPI_ISteamUGC_SetItemDescription.argtypes = [C.c_void_p, C.c_uint64, C.c_char_p]
 lib.SteamAPI_ISteamUGC_SetItemDescription.restype = C.c_bool
+lib.SteamAPI_ISteamUGC_RemoveItemPreview.argtypes = [C.c_void_p, C.c_uint64, C.c_uint32]
+lib.SteamAPI_ISteamUGC_RemoveItemPreview.restype = C.c_bool
 
 h = lib.SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, fileid)
 if images[:1] == ["--desc"]:
     assert lib.SteamAPI_ISteamUGC_SetItemDescription(ugc, h, open(images[1], encoding="utf-8").read().encode())
     images = []
+elif images[:1] == ["--remove"]:
+    for i in reversed(range(int(images[1]))):  # from the end so indices don't shift
+        assert lib.SteamAPI_ISteamUGC_RemoveItemPreview(ugc, h, i)
+    images = []
 for img in images:
-    assert lib.SteamAPI_ISteamUGC_AddItemPreviewFile(ugc, h, img.encode(), 0), img  # 0 = k_EItemPreviewType_Image
+    # Steam needs absolute paths (relative ones fail with EResult 9)
+    assert lib.SteamAPI_ISteamUGC_AddItemPreviewFile(ugc, h, os.path.abspath(img).encode(), 0), img  # 0 = k_EItemPreviewType_Image
 call = lib.SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, h, None)
 
 failed = C.c_bool()

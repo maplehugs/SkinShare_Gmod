@@ -1,0 +1,178 @@
+[
+ [
+  "s2",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Your skins, on anyone's server",
+  "Pick any playermodel from YOUR addons. Everyone downloads it and sees it on you, mid-game.",
+  [
+   [
+    552,
+    104,
+    982,
+    685,
+    "Your own playermodels",
+    "right"
+   ],
+   [
+    816,
+    690,
+    938,
+    724,
+    "Share it!",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s3",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Favorites",
+  "Right-click any model to save it with its bodygroups, face and colors. One click to load it again.",
+  [
+   [
+    552,
+    96,
+    766,
+    200,
+    "Saved setups",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s4",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Bodygroups & skins",
+  "Toggle hair, clothes and accessories. Everyone sees exactly what you picked.",
+  [
+   [
+    558,
+    88,
+    980,
+    352,
+    "Bodygroups",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s5",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Player & weapon colors",
+  "Live preview while you pick. Works in TTT, Sandbox, Murder and more.",
+  [
+   [
+    558,
+    90,
+    950,
+    515,
+    "Colors",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s6",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Admin: players",
+  "See everyone's skin. Remove it, block it for everyone or stop someone from using skins, in one click.",
+  [
+   [
+    812,
+    176,
+    964,
+    224,
+    "One-click actions",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s7",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Admin: blocked skins",
+  "Blocked addons can't be used by anyone on your server. Unblock them anytime.",
+  [
+   [
+    570,
+    146,
+    962,
+    204,
+    "Blocked for everyone",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s8",
+  [
+   450,
+   160,
+   1020,
+   760
+  ],
+  "Admin: server settings",
+  "Turn it off for a gamemode (Murder, Prop Hunt...), admin-only mode, cooldown and size limit.",
+  [
+   [
+    566,
+    122,
+    832,
+    194,
+    "Off per gamemode",
+    "right"
+   ]
+  ]
+ ],
+ [
+  "s1",
+  [
+   0,
+   0,
+   440,
+   300
+  ],
+  "Open it anywhere",
+  "Type !skin in chat, or click the SkinShare icon in the Sandbox C menu.",
+  [
+   [
+    12,
+    34,
+    88,
+    130,
+    "SkinShare",
+    "right"
+   ]
+  ]
+ ]
+]

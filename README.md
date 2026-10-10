@@ -49,4 +49,9 @@ Las capturas y la descripción de la página (`gmpublish` no las sube) se ponen 
 SteamAppId=4000 python3 workshop/previews.py ~/.local/share/Steam/steamrt64/libsteam_api.so 4000 3816842120 workshop/screenshot*.jpg
 SteamAppId=4000 python3 workshop/previews.py ~/.local/share/Steam/steamrt64/libsteam_api.so 4000 3816842120 --desc workshop/description.txt
 ```
-Ojo: agrega, no reemplaza. Las viejas se borran desde la página del item.
+Agrega, no reemplaza: para quitar las que hay, `--remove <cantidad>` antes de subir las nuevas.
+
+Las capturas del showcase (título, zoom al menú y recuadros) se generan desde capturas crudas de 1920x1080 con el menú centrado:
+```sh
+python3 workshop/showcase.py <carpeta con s1.jpg...s8.jpg> workshop workshop/showcase.json
+```

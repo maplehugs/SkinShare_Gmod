@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.7.0"
+local VERSION = "0.7.1"
 print("SkinShare v" .. VERSION)
 
 local function mount(wsid, cb)
@@ -74,7 +74,9 @@ if SERVER then
 		if ply.SetupHands then ply:SetupHands() end
 		-- las manos que registra el addon del cliente no existen aquí (su Lua no corre): se usan las *_arms.mdl que mandó
 		local hands = ply:GetHands()
-		if s.arms ~= "" and IsValid(hands) and file.Exists(s.arms, "GAME") then hands:SetModel(s.arms) end
+		if s.arms ~= "" and IsValid(hands) and file.Exists(s.arms, "GAME") then
+			hands:SetModel(s.arms) hands:SetSkin(0) hands:SetBodyGroups("0000000")
+		end
 		return true
 	end
 
@@ -84,9 +86,9 @@ if SERVER then
 
 	-- cada cliente avisa cuando ya montó la skin; si el server la pone antes, ese cliente la cachea como ERROR
 	net.Receive("skinshare_ack", function(_, from)
-		local owner = net.ReadEntity()
+		local owner, mdl = net.ReadEntity(), net.ReadString()
 		local s = IsValid(owner) and skins[owner:SteamID64()]
-		if s and s.waiting then s.waiting[from] = nil end
+		if s and s.mdl == mdl then s.waiting[from] = nil end
 	end)
 
 	local function allMounted(s)
@@ -115,9 +117,11 @@ if SERVER then
 
 		if wsid == "none" then -- volver a la skin y colores del gamemode
 			skins[ply:SteamID64()] = nil
+			-- cl_playercolor solo existe en Sandbox; antes del gamemode para que TTT ponga los suyos
+			local pc, wc = ply:GetInfo("cl_playercolor"), ply:GetInfo("cl_weaponcolor")
+			if pc ~= "" then ply:SetPlayerColor(Vector(pc)) end
+			if wc ~= "" then ply:SetWeaponColor(Vector(wc)) end
 			if ply:Alive() and GAMEMODE.PlayerSetModel then GAMEMODE:PlayerSetModel(ply) end
-			ply:SetPlayerColor(Vector(ply:GetInfo("cl_playercolor")))
-			ply:SetWeaponColor(Vector(ply:GetInfo("cl_weaponcolor")))
 			if ply.SetupHands then ply:SetupHands() end
 			return
 		end
@@ -142,7 +146,8 @@ if SERVER then
 		local name = "skinshare_" .. ply:SteamID64()
 		timer.Create(name, 1, 60, function()
 			if not IsValid(ply) or skins[ply:SteamID64()] ~= s then return timer.Remove(name) end
-			if allMounted(s) or timer.RepsLeft(name) == 0 then
+			s.tries = (s.tries or 0) + 1
+			if allMounted(s) or s.tries >= 60 then
 				s.ready = true
 				if apply(ply) then timer.Remove(name) end
 			end
@@ -179,7 +184,7 @@ end
 net.Receive("skinshare", function()
 	local ply, wsid, mdl = net.ReadEntity(), net.ReadString(), net.ReadString()
 	mount(wsid, function()
-		net.Start("skinshare_ack") net.WriteEntity(ply) net.SendToServer()
+		net.Start("skinshare_ack") net.WriteEntity(ply) net.WriteString(mdl) net.SendToServer()
 		if IsValid(ply) then ply:SetModel(mdl) end
 	end)
 end)
@@ -198,11 +203,21 @@ local function addonFor(mdl)
 	return "0"
 end
 
--- brazos del viewmodel: *_arms.mdl / c_arms*.mdl en la misma carpeta del modelo
-local function armsFor(mdl)
-	local dir = string.GetPathFromFilename(mdl)
-	local found = file.Find(dir .. "*arms*.mdl", "GAME")
-	return found and found[1] and (dir .. found[1]):lower() or ""
+-- brazos del viewmodel para skins cuyo Lua no corre aquí: <modelo>_arms.mdl o c_arms*.mdl de su mismo addon
+local function armsFor(mdl, wsid)
+	for _, v in pairs(player_manager.AllValidModels()) do
+		if v:lower() == mdl then return "" end -- registrado: SetupHands ya pone las manos correctas
+	end
+	local arms = string.StripExtension(mdl) .. "_arms.mdl"
+	if file.Exists(arms, "GAME") then return arms end
+	for _, a in ipairs(engine.GetAddons()) do
+		if tostring(a.wsid) == wsid then
+			local dir = string.GetPathFromFilename(mdl)
+			local found = file.Find(dir .. "c_arms*.mdl", a.title)
+			return found and found[1] and (dir .. found[1]):lower() or ""
+		end
+	end
+	return ""
 end
 
 -- Un playermodel incluye las animaciones de jugador (models/m_anm.mdl, f_anm o z_anm); brazos y props no.
@@ -233,9 +248,8 @@ end
 
 local function allModels()
 	local list = {} -- [mdl] = nombre
-	-- sin filtrar por a.models: sin conexión a Steam algunos addons salen con models = 0
 	for _, a in ipairs(engine.GetAddons()) do
-		if a.mounted then findModels("models/", a.title, list) end
+		if a.mounted and (a.models or 1) > 0 then findModels("models/", a.title, list) end
 	end
 	for name, mdl in pairs(player_manager.AllValidModels()) do list[mdl:lower()] = name end
 	return list
@@ -245,7 +259,7 @@ concommand.Add("skinshare_debug", function()
 	print("SkinShare v" .. VERSION)
 	for _, a in ipairs(engine.GetAddons()) do
 		local f, d = file.Find("models/*", a.title)
-		if #f + #d > 0 then print(a.mounted, a.wsid, a.models, #f + #d, a.title) end
+		if #(f or {}) + #(d or {}) > 0 then print(a.mounted, a.wsid, a.models, #f + #d, a.title) end
 	end
 end)
 
@@ -373,7 +387,8 @@ concommand.Add("skinshare", function()
 		local bg, fl = {}, {}
 		for i = 0, ent:GetNumBodyGroups() - 1 do bg[#bg + 1] = sel.bg[i] or 0 end
 		for i = 0, ent:GetFlexNum() - 1 do fl[#fl + 1] = string.format("%.2f", sel.flex[i] or 0) end
-		return { wsid = addonFor(sel.mdl), mdl = sel.mdl, arms = armsFor(sel.mdl), skin = sel.skin,
+		local wsid = addonFor(sel.mdl)
+		return { wsid = wsid, mdl = sel.mdl, arms = armsFor(sel.mdl, wsid), skin = sel.skin,
 			bg = table.concat(bg, " "), flex = table.concat(fl, " "), col = pcol:GetVector(), wcol = wcol:GetVector() }
 	end
 

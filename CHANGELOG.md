@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.1 — 2026-10-09
+- Fix: Quitar skin ya no deja a los jugadores negros fuera de Sandbox (`cl_playercolor` solo existe ahí).
+- Fix: el ack incluye el modelo, así que un ack de una skin anterior ya no libera la nueva antes de tiempo.
+- Manos: primero `<modelo>_arms.mdl` y luego `c_arms*` del mismo addon; no se tocan si el modelo ya está registrado. Se reinician el skin y los bodygroups de las manos.
+- El fallback de 60 s usa un contador propio.
+- Vuelve el filtro `models > 0` (escanear todos los addons era lento).
+
 ## v0.7.0 — 2026-10-09
 - La skin se aplica cuando todos los clientes la montaron (ack) o a los 60 s; evita que se queden con ERROR.
 - `resource.AddWorkshop` para quien se una después.

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.4.0 — 2026-10-09
+- Fuerza la skin elegida por encima de la del gamemode (TTT, etc.). Solo reemplaza playermodels, así que Prop Hunt sigue funcionando.
+
 ## v0.3.0 — 2026-10-09
 - Pestañas Bodygroups/Skin y Color. El server los aplica y se mantienen al respawnear.
 

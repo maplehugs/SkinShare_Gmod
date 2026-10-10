@@ -20,14 +20,34 @@ if SERVER then
 		if to then net.Send(to) else net.Broadcast() end
 	end
 
+	-- solo se reemplazan playermodels: así Prop Hunt y similares pueden seguir volviéndote un prop
+	local function isPlayerModel(m)
+		m = m:lower()
+		if m:find("/player/", 1, true) then return true end
+		for _, v in pairs(player_manager.AllValidModels()) do
+			if v:lower() == m then return true end
+		end
+	end
+
+	-- forzar: cualquier SetModel del gamemode (TTT, etc.) se cambia por la skin elegida
+	local meta = FindMetaTable("Player")
+	meta.SkinShareRawSetModel = meta.SkinShareRawSetModel or meta.SetModel
+	function meta:SetModel(m)
+		local s = skins[self:SteamID64()]
+		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m)) and file.Exists(s.mdl, "GAME")) then
+			return self:SkinShareRawSetModel(m)
+		end
+		self:SkinShareRawSetModel(s.mdl)
+		self:SetSkin(math.min(s.skin, self:SkinCount() - 1))
+		local i = 0
+		for v in s.bg:gmatch("%d+") do self:SetBodygroup(i, tonumber(v)) i = i + 1 end
+	end
+
 	local function apply(ply)
 		local s = skins[ply:SteamID64()]
 		if not (s and file.Exists(s.mdl, "GAME")) then return end
 		ply:SetModel(s.mdl)
-		ply:SetSkin(math.min(s.skin, ply:SkinCount() - 1))
 		ply:SetPlayerColor(s.col)
-		local i = 0
-		for v in s.bg:gmatch("%d+") do ply:SetBodygroup(i, tonumber(v)) i = i + 1 end
 		return true
 	end
 

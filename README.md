@@ -8,7 +8,7 @@ Un jugador elige uno de **sus** addons de modelos y todos los demás lo descarga
 - Pestañas **Bodygroups** (skin y partes intercambiables del modelo) y **Color** (color del jugador), y todo se ve en el preview.
 - Escoge uno y dale a **Usar y compartir**. El mod detecta solo de qué addon del Workshop viene.
 - El server lo valida y se lo manda a todos. Cada cliente lo descarga del Workshop y lo monta.
-- La skin se mantiene al respawnear y funciona en cualquier gamemode (TTT incluido).
+- La skin se **fuerza** por encima de la del gamemode (TTT, etc.) y se mantiene al respawnear y funciona en cualquier gamemode (TTT incluido).
 
 Solo el host necesita el addon. Los clientes reciben el Lua al conectarse.
 

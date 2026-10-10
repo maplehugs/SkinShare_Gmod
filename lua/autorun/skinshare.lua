@@ -2,6 +2,7 @@
 AddCSLuaFile()
 
 local function mount(wsid, cb)
+	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
 	steamworks.DownloadUGC(wsid, function(path)
 		if not path then return end
 		local ok, files = game.MountGMA(path)
@@ -74,26 +75,65 @@ end)
 
 hook.Add("InitPostEntity", "skinshare", function() choose("", "") end)
 
+-- mismo truco que duplicator.FigureOutRequiredAddons
+local function addonFor(mdl)
+	for _, a in ipairs(engine.GetAddons()) do
+		if a.mounted and file.Exists(mdl, a.title) then return tostring(a.wsid) end
+	end
+	return "0"
+end
+
+-- interfaz al estilo Enhanced PlayerModel Selector: preview a la izquierda, iconos a la derecha
 concommand.Add("skinshare", function()
 	local f = vgui.Create("DFrame")
-	f:SetSize(480, 420) f:Center() f:SetTitle("SkinShare: elige uno de tus addons de modelos") f:MakePopup()
+	f:SetSize(math.min(ScrW() - 16, 960), math.min(ScrH() - 16, 700)) f:Center()
+	f:SetTitle("SkinShare") f:MakePopup()
 
-	local list = vgui.Create("DListView", f)
-	list:Dock(FILL) list:SetMultiSelect(false) list:AddColumn("Addon")
-	for _, a in ipairs(engine.GetAddons()) do
-		if a.mounted and (a.models or 0) > 0 then list:AddLine(a.title).wsid = tostring(a.wsid) end
+	local right = f:Add("DPanel")
+	right:Dock(RIGHT) right:SetWide(f:GetWide() * 0.45)
+	local search = right:Add("DTextEntry")
+	search:Dock(TOP) search:SetPlaceholderText("Buscar...") search:SetUpdateOnType(true)
+	local btn = right:Add("DButton")
+	btn:Dock(BOTTOM) btn:SetTall(32) btn:SetText("Usar y compartir") btn:SetEnabled(false)
+	local scroll = right:Add("DScrollPanel")
+	scroll:Dock(FILL)
+	local grid = scroll:Add("DIconLayout")
+	grid:Dock(FILL) grid:SetSpaceX(4) grid:SetSpaceY(4)
+
+	local preview = f:Add("DModelPanel") -- su LayoutEntity por defecto ya lo hace girar
+	preview:Dock(FILL) preview:SetFOV(36) preview:SetAnimated(true)
+	preview:SetCamPos(Vector(0, 0, 0)) preview:SetLookAt(Vector(-100, 0, -22))
+
+	local selected
+	local function pick(mdl)
+		selected = mdl
+		preview:SetModel(mdl)
+		local ent = preview.Entity
+		ent:SetPos(Vector(-100, 0, -61))
+		ent.GetPlayerColor = function() return LocalPlayer():GetPlayerColor() end
+		local seq = ent:LookupSequence("idle_all_01")
+		if seq > 0 then ent:ResetSequence(seq) end
+		btn:SetEnabled(true)
 	end
 
-	list.OnRowSelected = function(_, _, line)
-		mount(line.wsid, function(files)
-			local menu = DermaMenu()
-			for _, p in ipairs(files) do
-				if p:match("^models/.+%.mdl$") and not p:find("arms") and not p:find("hands") then
-					menu:AddOption(p, function() choose(line.wsid, p) f:Close() end)
-				end
+	local function populate()
+		grid:Clear()
+		local q = search:GetValue():lower()
+		for name, mdl in SortedPairs(player_manager.AllValidModels()) do
+			if q == "" or name:lower():find(q, 1, true) then
+				local icon = grid:Add("SpawnIcon")
+				icon:SetSize(64, 64) icon:SetModel(mdl) icon:SetTooltip(name)
+				icon.DoClick = function() pick(mdl) end
 			end
-			menu:Open()
-		end)
+		end
+	end
+	search.OnValueChange = populate
+	populate()
+	pick(LocalPlayer():GetModel())
+
+	btn.DoClick = function()
+		choose(addonFor(selected), selected)
+		f:Close()
 	end
 end)
 

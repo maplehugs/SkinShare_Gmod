@@ -4,7 +4,8 @@ Un jugador elige uno de **sus** addons de modelos y todos los demás lo descarga
 
 ## Uso
 - En el chat escribe `!skin` (o `skinshare` en la consola).
-- Elige el addon y luego el `.mdl` del modelo.
+- Se abre un selector con preview en 3D girando a la izquierda y todos tus playermodels como iconos a la derecha, con buscador.
+- Escoge uno y dale a **Usar y compartir**. El mod detecta solo de qué addon del Workshop viene.
 - El server lo valida y se lo manda a todos. Cada cliente lo descarga del Workshop y lo monta.
 - La skin se mantiene al respawnear y funciona en cualquier gamemode (TTT incluido).
 
@@ -18,6 +19,7 @@ Menú principal → **Addons** → activa solo los que quieras → **Presets →
 En un listen server los clientes descargan los addons que tiene activos el host, así que cambiar el preset limita lo que se les envía.
 
 ## Limitaciones
+- Solo aparecen los modelos que el addon registra como playermodel (`player_manager.AddValidModel`), igual que en el selector de Sandbox.
 - El addon de la skin tiene que ser público en el Workshop (se descarga por ID).
 - Si un jugador no estaba a la vista cuando se montó la skin, puede verse como ERROR hasta su próximo respawn.
 

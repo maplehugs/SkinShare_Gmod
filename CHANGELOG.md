@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.0 — 2026-10-10
+- Interfaz nueva con skin de Derma propio (plano oscuro, acento azul): botones, pestañas, sliders, buscador, scroll y menús combinan. El preview muestra el nombre del modelo y los controles.
+- Ícono nuevo del Workshop.
+- Clic derecho en un modelo: Seleccionar / Agregar a favoritos. Clic derecho en el preview: guardar en favoritos lo que tienes puesto (bodygroups, cara, colores).
+- Favoritos ahora en cuadrícula con íconos: clic carga y clic derecho deja cargar, renombrar o borrar.
+- El preview solo gira con clic izquierdo.
+
 ## v0.9.1 — 2026-10-09
 - Fix: volvieron las skins que faltaban. `util.IsValidModel` en el cliente rechazaba los modelos que el server no había precacheado. Ahora se filtran solo los que no existen y los de animaciones.
 

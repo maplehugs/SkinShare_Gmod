@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.9.1"
+local VERSION = "0.10.0"
 print("SkinShare v" .. VERSION)
 
 local MAX_SIZE = 300 * 1024 * 1024
@@ -287,13 +287,17 @@ end)
 -- idioma: auto sigue el idioma de GMod (gmod_language); skinshare_language en/es lo fuerza
 local LANG = CreateClientConVar("skinshare_language", "auto", true, false, "auto, en or es")
 local STRINGS = {
-	en = { search = "Search...", name = "Name", models = "Models", favorites = "Favorites", bodygroups = "Bodygroups",
+	en = { search = "Search...", models = "Models", favorites = "Favorites", bodygroups = "Bodygroups",
 		face = "Face", colors = "Colors", playercolor = "Player color", weaponcolor = "Weapon color (physgun, etc.)",
-		delete = "Delete", load = "Load", save = "Save current", favorite = "Favorite", namePrompt = "Name:",
+		delete = "Delete", load = "Load", favorite = "Favorite", namePrompt = "Name:", rename = "Rename",
+		addFav = "Add to favorites", select = "Select", noFavs = "Right-click a model to add it here.",
+		hint = "Drag: rotate   Wheel: zoom   Right-click: favorite",
 		remove = "Remove skin", reset = "Reset", apply = "Use and share" },
-	es = { search = "Buscar...", name = "Nombre", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
+	es = { search = "Buscar...", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
 		face = "Cara", colors = "Colores", playercolor = "Color del jugador", weaponcolor = "Color del arma (physgun, etc.)",
-		delete = "Borrar", load = "Cargar", save = "Guardar actual", favorite = "Favorito", namePrompt = "Nombre:",
+		delete = "Borrar", load = "Cargar", favorite = "Favorito", namePrompt = "Nombre:", rename = "Renombrar",
+		addFav = "Agregar a favoritos", select = "Seleccionar", noFavs = "Clic derecho en un modelo para agregarlo aquí.",
+		hint = "Arrastra: girar   Rueda: zoom   Clic derecho: favorito",
 		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir" },
 }
 local function lang()
@@ -309,9 +313,93 @@ local function slider(parent, label, min, max, decimals, val, onChange)
 	s.OnValueChanged = function(_, v) onChange(decimals == 0 and math.Round(v) or v) end
 end
 
+-- skin plano oscuro para toda la ventana (botones, pestañas, sliders, scroll, menús).
+local ACCENT, ACCENT_HI = Color(60, 150, 245), Color(90, 175, 255)
+local BG, BG_PREVIEW = Color(24, 26, 31), Color(36, 39, 46)
+local SURFACE, SURFACE_HI, SURFACE_LO = Color(44, 47, 55), Color(58, 62, 72), Color(32, 34, 40)
+local TEXT, TEXT_DIM = Color(230, 232, 236), Color(150, 155, 165)
+
+local SKIN = { PrintName = "SkinShare", Author = "SkinShare", DermaVersion = 1 } -- DefineSkin hereda de Default
+SKIN.colTextEntryText, SKIN.colTextEntryTextPlaceholder = TEXT, TEXT_DIM
+SKIN.colTextEntryTextHighlight, SKIN.colTextEntryTextCursor = ACCENT, TEXT
+SKIN.colNumSliderNotch = Color(255, 255, 255, 40)
+local function states(n, h, d, x) return { Normal = n, Hover = h, Down = d, Disabled = x } end
+SKIN.Colours = {
+	Window = { TitleActive = TEXT, TitleInactive = TEXT_DIM },
+	Button = states(TEXT, color_white, color_white, Color(110, 114, 122)),
+	Tab = { Active = states(color_white, color_white, color_white, TEXT_DIM), Inactive = states(TEXT_DIM, TEXT, TEXT, Color(90, 94, 102)) },
+	Label = { Default = TEXT, Bright = color_white, Dark = TEXT, Highlight = ACCENT_HI },
+}
+setmetatable(SKIN.Colours, { __index = function(_, k) return derma.GetNamedSkin("Default").Colours[k] end })
+
+function SKIN:PaintFrame(_, w, h)
+	draw.RoundedBox(8, 0, 0, w, h, BG)
+	draw.RoundedBoxEx(8, 0, 0, w, 24, Color(16, 17, 21), true, true)
+	surface.SetDrawColor(ACCENT) surface.DrawRect(0, 24, w, 2)
+end
+function SKIN:PaintPanel(p, w, h) if p.m_bBackground then draw.RoundedBox(6, 0, 0, w, h, SURFACE_LO) end end
+function SKIN:PaintButton(p, w, h)
+	if not p.m_bBackground then return end
+	draw.RoundedBox(4, 0, 0, w, h, not p:IsEnabled() and SURFACE_LO or p.Depressed and SURFACE_LO or p.Hovered and SURFACE_HI or SURFACE)
+end
+function SKIN:PaintWindowCloseButton(p, w, h)
+	if p.Hovered then draw.RoundedBox(4, 4, 2, w - 8, h - 6, Color(200, 60, 60)) end
+	draw.SimpleText("✕", "DermaDefaultBold", w / 2, h / 2 - 2, TEXT, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end
+function SKIN:PaintWindowMinimizeButton() end
+function SKIN:PaintWindowMaximizeButton() end
+function SKIN:PaintPropertySheet(p, w, h)
+	local tab = p:GetActiveTab()
+	local y = tab and tab:GetTall() - 8 or 0
+	draw.RoundedBox(6, 0, y, w, h - y, SURFACE_LO)
+end
+function SKIN:PaintTab(p, w, h)
+	if p:IsActive() then
+		draw.RoundedBoxEx(6, 0, 0, w, h - 8, SURFACE_LO, true, true)
+		surface.SetDrawColor(ACCENT) surface.DrawRect(4, 0, w - 8, 2)
+	elseif p.Hovered then
+		draw.RoundedBoxEx(6, 0, 2, w, h - 10, SURFACE, true, true)
+	end
+end
+function SKIN:PaintTextEntry(p, w, h)
+	if p.m_bBackground then
+		draw.RoundedBox(4, 0, 0, w, h, p:HasFocus() and ACCENT or SURFACE_HI)
+		draw.RoundedBox(4, 1, 1, w - 2, h - 2, SURFACE)
+	end
+	local empty = p:GetText() == ""
+	if empty and (p:GetPlaceholderText() or "") ~= "" then
+		p:SetText(p:GetPlaceholderText())
+		p:DrawTextEntryText(p:GetPlaceholderColor(), p:GetHighlightColor(), p:GetCursorColor())
+		p:SetText("")
+	else
+		p:DrawTextEntryText(p:GetTextColor(), p:GetHighlightColor(), p:GetCursorColor())
+	end
+end
+function SKIN:PaintVScrollBar(_, w, h) draw.RoundedBox(4, w / 2 - 3, 0, 6, h, SURFACE_LO) end
+function SKIN:PaintScrollBarGrip(p, w, h) draw.RoundedBox(4, w / 2 - 3, 0, 6, h, (p.Hovered or p.Depressed) and ACCENT or SURFACE_HI) end
+function SKIN:PaintButtonUp() end
+function SKIN:PaintButtonDown() end
+function SKIN:PaintNumSlider(_, w, h) draw.RoundedBox(2, 8, h / 2 - 2, w - 16, 4, SURFACE_HI) end
+function SKIN:PaintSliderKnob(p, w, h)
+	draw.RoundedBox(w / 2, 1, 1, w - 2, h - 2, (p.Hovered or p.Depressed) and ACCENT_HI or ACCENT)
+end
+function SKIN:PaintMenu(_, w, h) draw.RoundedBox(4, 0, 0, w, h, SURFACE) end
+function SKIN:PaintMenuSpacer(_, w, h) surface.SetDrawColor(SURFACE_HI) surface.DrawRect(4, 0, w - 8, h) end
+function SKIN:PaintMenuOption(p, w, h) if p.Hovered then draw.RoundedBox(4, 2, 1, w - 4, h - 2, ACCENT) end end
+function SKIN:PaintTooltip(_, w, h) draw.RoundedBox(4, 0, 0, w, h, SURFACE_HI) end
+derma.DefineSkin("SkinShare", "Flat dark", SKIN)
+
+local function menu(options) -- { {text, icon, fn}, ... }; false = separador
+	local m = DermaMenu()
+	for _, o in ipairs(options) do
+		if o then m:AddOption(o[1], o[3]):SetIcon(o[2]) else m:AddSpacer() end
+	end
+	m:SetSkin("SkinShare") m:Open()
+end
+
 local function button(parent, text, dock, onClick)
 	local b = parent:Add("DButton")
-	b:Dock(dock) b:SetText(text) b.DoClick = onClick
+	b:Dock(dock) b:DockMargin(2, 0, 2, 0) b:SetText(text) b.DoClick = onClick
 	if dock ~= FILL then b:SetWide(110) end
 	return b
 end
@@ -323,30 +411,32 @@ concommand.Add("skinshare", function()
 	local f = vgui.Create("DFrame")
 	f:SetSize(math.min(ScrW() - 16, 960), math.min(ScrH() - 16, 700)) f:Center()
 	f:SetTitle("SkinShare v" .. VERSION) f:MakePopup()
+	f:DockPadding(8, 32, 8, 8) f:SetSkin("SkinShare")
 
 	local right = f:Add("DPanel")
-	right:Dock(RIGHT) right:SetWide(f:GetWide() * 0.45)
+	right:Dock(RIGHT) right:SetWide(f:GetWide() * 0.45) right:SetPaintBackground(false)
 	local bar = right:Add("DPanel")
-	bar:Dock(BOTTOM) bar:SetTall(32) bar:SetPaintBackground(false)
+	bar:Dock(BOTTOM) bar:SetTall(34) bar:DockPadding(0, 4, 0, 0) bar:SetPaintBackground(false)
 	local sheet = right:Add("DPropertySheet")
 	sheet:Dock(FILL)
 
 	-- Modelos
 	local models = vgui.Create("DPanel")
+	models:SetPaintBackground(false)
 	local search = models:Add("DTextEntry")
-	search:Dock(TOP) search:SetPlaceholderText(T("search")) search:SetUpdateOnType(true)
+	search:Dock(TOP) search:DockMargin(0, 0, 0, 6) search:SetTall(26) search:SetPlaceholderText(T("search")) search:SetUpdateOnType(true)
 	local scroll = models:Add("DScrollPanel")
 	scroll:Dock(FILL)
 	local grid = scroll:Add("DIconLayout")
 	grid:Dock(TOP) grid:SetSpaceX(4) grid:SetSpaceY(4)
 	sheet:AddSheet(T("models"), models, "icon16/user.png")
 
-	-- Favoritos
-	local favs = vgui.Create("DPanel")
-	local favBar = favs:Add("DPanel")
-	favBar:Dock(BOTTOM) favBar:SetTall(28) favBar:SetPaintBackground(false)
-	local favList = favs:Add("DListView")
-	favList:Dock(FILL) favList:SetMultiSelect(false) favList:AddColumn(T("name"))
+	-- Favoritos: cuadrícula como la de modelos, clic carga, clic derecho renombra/borra
+	local favs = vgui.Create("DScrollPanel")
+	local noFavs = favs:Add("DLabel")
+	noFavs:Dock(TOP) noFavs:DockMargin(8, 8, 8, 0) noFavs:SetText(T("noFavs")) noFavs:SetDark(true)
+	local favGrid = favs:Add("DIconLayout")
+	favGrid:Dock(TOP) favGrid:DockMargin(4, 4, 4, 4) favGrid:SetSpaceX(4) favGrid:SetSpaceY(4)
 	sheet:AddSheet(T("favorites"), favs, "icon16/star.png")
 
 	-- Bodygroups, skin y caras
@@ -359,6 +449,7 @@ concommand.Add("skinshare", function()
 
 	-- Colores
 	local colors = vgui.Create("DPanel")
+	colors:SetPaintBackground(false)
 	local function mixer(label, vec)
 		local l = colors:Add("DLabel")
 		l:Dock(TOP) l:DockMargin(8, 8, 8, 0) l:SetText(label) l:SetDark(true)
@@ -372,10 +463,10 @@ concommand.Add("skinshare", function()
 
 	-- preview: arrastra para girar, rueda para zoom
 	local preview = f:Add("DModelPanel")
-	preview:Dock(FILL) preview:SetFOV(36) preview:SetAnimated(true)
+	preview:Dock(FILL) preview:DockMargin(0, 0, 8, 0) preview:SetFOV(36) preview:SetAnimated(true)
 	preview:SetCamPos(Vector(0, 0, 0)) preview:SetLookAt(Vector(-100, 0, -22))
 	local yaw, zoom = 0, 0
-	function preview:DragMousePress() self.px = gui.MouseX() end
+	function preview:DragMousePress(code) if code == MOUSE_LEFT then self.px = gui.MouseX() end end
 	function preview:DragMouseRelease() self.px = nil end
 	function preview:OnMouseWheeled(d) zoom = math.Clamp(zoom + d * 8, -80, 60) end
 	function preview:LayoutEntity(ent)
@@ -385,7 +476,19 @@ concommand.Add("skinshare", function()
 		ent:SetPos(Vector(-100 + zoom, 0, -61))
 	end
 
+	local list = allModels()
 	local sel = {}
+	local basePaint = preview.Paint
+	function preview:Paint(w, h)
+		draw.RoundedBox(8, 0, 0, w, h, BG_PREVIEW)
+		basePaint(self, w, h)
+		draw.SimpleText(T("hint"), "DermaDefault", 10, 8, Color(255, 255, 255, 110))
+		if sel.mdl then
+			draw.SimpleTextOutlined(list[sel.mdl] or string.StripExtension(string.GetFileFromFilename(sel.mdl)), "DermaLarge",
+				w / 2, h - 12, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, Color(0, 0, 0, 160))
+		end
+	end
+
 	local function pick(mdl, skin, bg, flex)
 		mdl = mdl:lower()
 		preview:SetModel(mdl)
@@ -442,15 +545,21 @@ concommand.Add("skinshare", function()
 		return file.Exists(mdl, "GAME") and not (mdl:find("_anm", 1, true) or mdl:find("_animations", 1, true)
 			or mdl:find("_gestures", 1, true) or mdl:find("_postures", 1, true))
 	end
-	local list = allModels()
+	local addFav -- definida abajo, después de refreshFavs
 	local function populate()
 		grid:Clear()
 		local q = search:GetValue():lower()
 		for mdl, name in SortedPairsByValue(list) do
 			if (q == "" or name:lower():find(q, 1, true)) and showable(mdl) then
 				local icon = grid:Add("SpawnIcon")
-				icon:SetSize(64, 64) icon:SetModel(mdl) icon:SetTooltip(name)
+				icon:SetSize(72, 72) icon:SetModel(mdl) icon:SetTooltip(name)
 				icon.DoClick = function() pick(mdl) end
+				icon.DoRightClick = function()
+					menu({
+						{ T("select"), "icon16/user.png", function() pick(mdl) end },
+						{ T("addFav"), "icon16/star.png", function() pick(mdl) addFav() end },
+					})
+				end
 			end
 		end
 	end
@@ -458,30 +567,48 @@ concommand.Add("skinshare", function()
 	populate()
 
 	local function refreshFavs()
-		favList:Clear()
-		for i, fav in ipairs(data.favs) do favList:AddLine(fav.name).fav = i end
+		favGrid:Clear()
+		for i, fav in ipairs(data.favs) do
+			local icon = favGrid:Add("SpawnIcon")
+			icon:SetSize(96, 96) icon:SetModel(fav.cfg.mdl, fav.cfg.skin or 0) icon:SetTooltip(fav.name)
+			local over = icon.PaintOver
+			icon.PaintOver = function(s, w, h)
+				if over then over(s, w, h) end
+				draw.SimpleTextOutlined(fav.name, "DermaDefaultBold", w / 2, h - 4, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, color_black)
+			end
+			icon.DoClick = function() load(fav.cfg) end
+			icon.DoRightClick = function()
+				menu({
+					{ T("load"), "icon16/user_go.png", function() load(fav.cfg) end },
+					{ T("rename"), "icon16/textfield_rename.png", function()
+						Derma_StringRequest(T("rename"), T("namePrompt"), fav.name, function(name)
+							if name ~= "" then fav.name = name saveData(data) refreshFavs() end
+						end)
+					end },
+					false,
+					{ T("delete"), "icon16/delete.png", function() table.remove(data.favs, i) saveData(data) refreshFavs() end },
+				})
+			end
+		end
+		noFavs:SetVisible(#data.favs == 0)
 	end
 	refreshFavs()
-	local function selectedFav()
-		local _, line = favList:GetSelectedLine()
-		return line and line.fav
-	end
-	favList.DoDoubleClick = function(_, _, line) load(data.favs[line.fav].cfg) end
-	button(favBar, T("delete"), RIGHT, function()
-		local i = selectedFav()
-		if i then table.remove(data.favs, i) saveData(data) refreshFavs() end
-	end)
-	button(favBar, T("load"), RIGHT, function()
-		local i = selectedFav()
-		if i then load(data.favs[i].cfg) end
-	end)
-	button(favBar, T("save"), FILL, function()
+	-- guarda lo que está en el preview (modelo + skin + bodygroups + cara + colores)
+	addFav = function()
 		if not sel.mdl then return end
-		Derma_StringRequest(T("favorite"), T("namePrompt"), string.StripExtension(string.GetFileFromFilename(sel.mdl)), function(name)
+		local cfg = current()
+		Derma_StringRequest(T("favorite"), T("namePrompt"), list[sel.mdl] or string.StripExtension(string.GetFileFromFilename(sel.mdl)), function(name)
 			if name == "" then return end
-			table.insert(data.favs, { name = name, cfg = current() }) saveData(data) refreshFavs()
+			table.insert(data.favs, { name = name, cfg = cfg }) saveData(data) refreshFavs()
 		end)
-	end)
+	end
+	preview.DoRightClick = function()
+		if not sel.mdl then return end
+		menu({
+			{ T("addFav"), "icon16/star.png", addFav },
+			{ T("reset"), "icon16/arrow_refresh.png", function() pick(sel.mdl) end },
+		})
+	end
 
 	button(bar, T("remove"), LEFT, function()
 		data.last = nil saveData(data)
@@ -495,12 +622,16 @@ concommand.Add("skinshare", function()
 	end)
 	langBtn:SetWide(40)
 	button(bar, T("reset"), LEFT, function() if sel.mdl then pick(sel.mdl) end end)
-	button(bar, T("apply"), FILL, function()
+	local applyBtn = button(bar, T("apply"), FILL, function()
 		if not sel.mdl then return end
 		data.last = current() saveData(data)
 		choose(data.last)
 		f:Close()
 	end)
+	applyBtn:SetFont("DermaDefaultBold") applyBtn:SetTextColor(color_white)
+	applyBtn.Paint = function(s, w, h) draw.RoundedBox(4, 0, 0, w, h, s:IsHovered() and ACCENT_HI or ACCENT) end
+
+	derma.RefreshSkins() -- los paneles creados sin padre cachearon el skin Default
 
 	-- arranca con lo que traes puesto
 	local bg, flex = {}, {}

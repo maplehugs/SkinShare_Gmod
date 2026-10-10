@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12.0 — 2026-10-10
+- Panel **Admin** en el menú (solo admins): activar/desactivar, solo admins, espera entre cambios, tamaño máximo del addon, modos de juego bloqueados (con botón para el modo actual), addons bloqueados y lista de jugadores para quitar la skin, bloquear su addon, banear/desbanear o copiar SteamID.
+- Convars del server `sv_skinshare_*` (replicadas) y comando `skinshare_admin` para consola/RCON. El baneo se guarda con PData.
+- Si un admin bloquea algo, las skins afectadas se quitan al momento. El cliente tampoco descarga addons bloqueados.
+- Hook `SkinShareCanUse(ply)` para que otros addons o gamemodes bloqueen SkinShare.
+- Botón de modelo aleatorio, `skinshare_random` (favorito al azar), copiar ruta del modelo y reescanear modelos sin cambiar de mapa.
+- Avisos en el chat cuando el server no te deja usar SkinShare y por qué.
+
 ## v0.11.1 — 2026-10-10
 - Fix: las manos no cambiaban (salían las default o se quedaban las de la skin anterior). Ahora el cliente siempre manda las manos de su skin, también las de modelos registrados por Lua, y el server las pone con el hook `PlayerSetHandsModel`, así sobreviven cuando el gamemode rearma las manos.
 

@@ -25,6 +25,8 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [*]Viewmodel hands (when the addon includes them)
 [*]Favorites: right-click any model or the preview to save the full setup; click to load, right-click to rename, overwrite or delete
 [/list]
+[*][b]Admin panel[/b] (only admins see it): turn SkinShare on/off, admin-only mode, cooldown, max addon size, block gamemodes (e.g. Murder, Prop Hunt) or specific addons, and a player list to remove someone's skin, block their addon or ban them from SkinShare.
+[*][b]Extras:[/b] random model button, copy model path, rescan models without changing map.
 [*][b]English and Spanish.[/b] Follows your GMod language, or switch with the EN/ES button.
 [/list]
 
@@ -40,9 +42,22 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [list]
 [*][b]!skin[/b] / [b]skinshare[/b]: open the menu
 [*][b]skinshare_fav "name"[/b]: use a favorite without opening the menu (bind it to a key!)
+[*][b]skinshare_random[/b]: use a random favorite
 [*][b]skinshare_language auto | en | es[/b]: menu language
 [*][b]skinshare_debug[/b]: list which of your addons the menu can see
 [/list]
+
+[h1]Server settings[/h1]
+Everything is in the Admin tab, or use these from the server console:
+[list]
+[*][b]sv_skinshare_enabled 1[/b] / [b]sv_skinshare_adminonly 0[/b]
+[*][b]sv_skinshare_cooldown 1[/b]: seconds between changes (admins skip it)
+[*][b]sv_skinshare_maxsize 300[/b]: max size in MB of a shared addon
+[*][b]sv_skinshare_block_gamemodes "murder,prop_hunt"[/b]
+[*][b]sv_skinshare_block_addons "123,456"[/b]: Workshop IDs that can't be shared
+[*][b]skinshare_admin strip|ban|unban <name or SteamID>[/b]
+[/list]
+[b]For developers:[/b] return false from the [b]SkinShareCanUse[/b] hook (shared) to block SkinShare for a player, e.g. during a round or for a team.
 
 [h1]FAQ[/h1]
 [b]Do my friends need to subscribe?[/b]
@@ -52,7 +67,7 @@ No. Only the host does. The menu is sent to everyone when they join.
 Make sure the addon is enabled in your Addons menu, then run [b]skinshare_debug[/b] in the console and check that it's listed.
 
 [b]Can anyone make everyone download anything?[/b]
-No. Only public Workshop items tagged "Model" and up to 300 MB are shared. Texture or sound replacement packs can't be pushed on other players.
+No. Only public Workshop items tagged "Model" and up to 300 MB (configurable) are shared, and admins can block any addon. Texture or sound replacement packs can't be pushed on other players.
 
 [b]Does it work with Enhanced PlayerModel Selector?[/b]
 Yes, but set [b]sv_playermodel_selector_force 0[/b]. Otherwise its force mode overrides every model change, including SkinShare's.
@@ -71,6 +86,7 @@ Con SkinShare escribes [b]!skin[/b] en el chat, eliges cualquier skin de TUS add
 [*][b]Funciona en TTT y en cualquier modo:[/b] la skin se mantiene entre rondas.
 [*][b]Se acuerda de ti:[/b] tu skin se guarda y se te pone sola cada vez que entras, aunque reinicies GMod.
 [*]Preview 3D, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
+[*][b]Panel de admin:[/b] apagarlo, solo admins, bloquear modos de juego o addons, y quitarle la skin o banear a un jugador.
 [/list]
 
 [hr][/hr]

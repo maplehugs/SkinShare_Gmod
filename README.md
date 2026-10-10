@@ -16,6 +16,9 @@ Solo el host necesita el addon. Los clientes reciben el Lua al conectarse.
 ## Instalación (dev)
 `garrysmod/addons/skinshare` es un symlink a este repo. Los cambios en el Lua se recargan en caliente.
 
+## Pantalla de carga
+Se configura en `lua/autorun/server/loadingurl.lua`: cambia la URL ahí.
+
 ## Presets por gamemode (sin código)
 Menú principal → **Addons** → activa solo los que quieras → **Presets → Save** (p. ej. `TTT`, `Sandbox`).
 En un listen server los clientes descargan los addons que tiene activos el host, así que cambiar el preset limita lo que se les envía.

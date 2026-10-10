@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.6.0 — 2026-10-09
+- Pantalla de carga personalizada (`lua/autorun/server/loadingurl.lua`).
+
 ## v0.5.0 — 2026-10-09
 - Preview: arrastrar para girar, rueda para zoom.
 - Pestañas Favoritos, Cara (flexes) y Colores (jugador + arma).

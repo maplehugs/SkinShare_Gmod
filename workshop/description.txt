@@ -25,7 +25,13 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [*]Viewmodel hands (when the addon includes them)
 [*]Favorites: right-click any model or the preview to save the full setup; click to load, right-click to rename, overwrite or delete
 [/list]
-[*][b]Admin panel[/b] (only admins see it): turn SkinShare on/off, admin-only mode, cooldown, max addon size, block gamemodes (e.g. Murder, Prop Hunt) or specific addons, and a player list to remove someone's skin, block their addon or ban them from SkinShare.
+[*][b]Admin panel[/b] (only admins see it), with three tabs:
+[list]
+[*][b]Players:[/b] see everyone's current skin and, in one click, remove it, block that skin for everyone, or stop that player from using skins.
+[*][b]Blocked skins:[/b] everything you've blocked, with an Unblock button.
+[*][b]Server:[/b] turn SkinShare on/off, turn it off just for this gamemode (e.g. Murder, Prop Hunt), admin-only mode, cooldown and max addon size.
+[/list]
+[*][b]Try skins without closing the menu.[/b] "Use and share" keeps the window open, so you can keep testing in front of a mirror.
 [*][b]Extras:[/b] random model button, copy model path, rescan models without changing map.
 [*][b]English and Spanish.[/b] Follows your GMod language, or switch with the EN/ES button.
 [/list]
@@ -55,7 +61,7 @@ Everything is in the Admin tab, or use these from the server console:
 [*][b]sv_skinshare_maxsize 300[/b]: max size in MB of a shared addon
 [*][b]sv_skinshare_block_gamemodes "murder,prop_hunt"[/b]
 [*][b]sv_skinshare_block_addons "123,456"[/b]: Workshop IDs that can't be shared
-[*][b]skinshare_admin strip|ban|unban <name or SteamID>[/b]
+[*][b]skinshare_admin strip|ban|unban <name or SteamID>[/b]: remove a skin / stop or allow a player using skins
 [/list]
 [b]For developers:[/b] return false from the [b]SkinShareCanUse[/b] hook (shared) to block SkinShare for a player, e.g. during a round or for a team.
 
@@ -86,7 +92,7 @@ Con SkinShare escribes [b]!skin[/b] en el chat, eliges cualquier skin de TUS add
 [*][b]Funciona en TTT y en cualquier modo:[/b] la skin se mantiene entre rondas.
 [*][b]Se acuerda de ti:[/b] tu skin se guarda y se te pone sola cada vez que entras, aunque reinicies GMod.
 [*]Preview 3D, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
-[*][b]Panel de admin:[/b] apagarlo, solo admins, bloquear modos de juego o addons, y quitarle la skin o banear a un jugador.
+[*][b]Panel de admin:[/b] ver la skin de cada jugador y, con un clic, quitársela, bloquearla para todos o no dejar que use skins. También apagarlo en un modo de juego (como Murder) o dejarlo solo para admins.
 [/list]
 
 [hr][/hr]

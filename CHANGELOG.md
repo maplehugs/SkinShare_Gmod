@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.4.1 — 2026-10-09
+- Fix: error `SkinShareRawSetModel` nil (SetModel vive en la metatabla de Entity).
+- Fix: los clientes ahora ven sus propias skins, buscando los .mdl en sus addons montados.
+
 ## v0.4.0 — 2026-10-09
 - Fuerza la skin elegida por encima de la del gamemode (TTT, etc.). Solo reemplaza playermodels, así que Prop Hunt sigue funcionando.
 

@@ -31,7 +31,8 @@ if SERVER then
 
 	-- forzar: cualquier SetModel del gamemode (TTT, etc.) se cambia por la skin elegida
 	local meta = FindMetaTable("Player")
-	meta.SkinShareRawSetModel = meta.SkinShareRawSetModel or meta.SetModel
+	-- SetModel vive en Entity, no en Player
+	meta.SkinShareRawSetModel = meta.SkinShareRawSetModel or FindMetaTable("Entity").SetModel
 	function meta:SetModel(m)
 		local s = skins[self:SteamID64()]
 		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m)) and file.Exists(s.mdl, "GAME")) then
@@ -116,6 +117,29 @@ local function addonFor(mdl)
 	return "0"
 end
 
+-- En server ajeno el cliente no corre el Lua de SUS addons, así que sus playermodels no se registran
+-- en player_manager. Se buscan los .mdl directamente en sus addons montados.
+local function findModels(dir, path, out)
+	local files, dirs = file.Find(dir .. "*", path)
+	for _, f in ipairs(files or {}) do
+		local p = (dir .. f):lower()
+		-- ponytail: heurística por ruta; un playermodel fuera de una carpeta "player" no aparece
+		if p:sub(-4) == ".mdl" and p:find("player", 1, true) and not p:find("arms", 1, true) and not p:find("hands", 1, true) then
+			out[p] = path .. " / " .. string.StripExtension(f)
+		end
+	end
+	for _, d in ipairs(dirs or {}) do findModels(dir .. d .. "/", path, out) end
+end
+
+local function allModels()
+	local list = {} -- [mdl] = nombre
+	for _, a in ipairs(engine.GetAddons()) do
+		if a.mounted and (a.models or 0) > 0 then findModels("models/", a.title, list) end
+	end
+	for name, mdl in pairs(player_manager.AllValidModels()) do list[mdl:lower()] = name end
+	return list
+end
+
 local function slider(parent, label, max, val, onChange)
 	local s = parent:Add("DNumSlider")
 	s:Dock(TOP) s:SetText(label) s:SetDark(true) s:SetDecimals(0) s:SetMinMax(0, max) s:SetValue(val)
@@ -186,10 +210,11 @@ concommand.Add("skinshare", function()
 		sheet.tabScroller:InvalidateLayout(true)
 	end
 
+	local list = allModels()
 	local function populate()
 		grid:Clear()
 		local q = search:GetValue():lower()
-		for name, mdl in SortedPairs(player_manager.AllValidModels()) do
+		for mdl, name in SortedPairsByValue(list) do
 			if q == "" or name:lower():find(q, 1, true) then
 				local icon = grid:Add("SpawnIcon")
 				icon:SetSize(64, 64) icon:SetModel(mdl) icon:SetTooltip(name)

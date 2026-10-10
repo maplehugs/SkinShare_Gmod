@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.12.0"
+local VERSION = "0.12.1"
 print("SkinShare v" .. VERSION)
 
 -- config del server (replicada: el cliente la lee para el menú y para filtrar lo que monta)
@@ -141,6 +141,7 @@ if SERVER then
 		if ply:Alive() and GAMEMODE.PlayerSetModel then GAMEMODE:PlayerSetModel(ply) end
 		if ply.SetupHands then ply:SetupHands() end
 		send(ply, { wsid = "none", mdl = "" })
+		ply:SetNWString("skinshare_wsid", "") ply:SetNWString("skinshare_mdl", "")
 	end
 
 	-- si un admin apaga SkinShare, bloquea el gamemode o un addon, se quitan al momento las skins afectadas
@@ -203,6 +204,7 @@ if SERVER then
 		for _, p in ipairs(player.GetAll()) do s.waiting[p] = true end
 		skins[ply:SteamID64()] = s
 		send(ply, s)
+		ply:SetNWString("skinshare_wsid", wsid) ply:SetNWString("skinshare_mdl", mdl)
 		-- los que se unan después la descargan mientras conectan
 		if wsid ~= "0" then resource.AddWorkshop(wsid) end
 		-- listen server: el cliente del host monta el GMA y comparte filesystem con el server
@@ -246,6 +248,7 @@ if SERVER then
 
 	local function findPlayer(q)
 		q = q:lower()
+		if q == "" then return end
 		for _, p in ipairs(player.GetAll()) do
 			if p:SteamID64() == q or p:SteamID():lower() == q then return p end
 		end
@@ -302,11 +305,10 @@ local function choose(c)
 	net.SendToServer()
 end
 
-local others = {} -- [jugador] = {wsid, mdl}, para el panel Admin
+local blockedMdl = {} -- [wsid] = mdl de las skins que bloqueaste en esta sesión, para su ícono
 net.Receive("skinshare", function()
 	local ply, wsid, mdl = net.ReadEntity(), net.ReadString(), net.ReadString()
-	if wsid == "none" then others[ply] = nil return end
-	others[ply] = { wsid = wsid, mdl = mdl }
+	if wsid == "none" then return end
 	mount(wsid, function()
 		net.Start("skinshare_ack") net.WriteEntity(ply) net.WriteString(mdl) net.SendToServer()
 		if IsValid(ply) then ply:SetModel(mdl) end
@@ -401,32 +403,40 @@ local STRINGS = {
 		addFav = "Add to favorites", select = "Select", rebuild = "Rebuild icon", overwrite = "Overwrite with current", noFavs = "Right-click a model to add it here.",
 		hint = "Drag: rotate   Wheel: zoom   Right-click: favorite",
 		remove = "Remove skin", reset = "Reset", apply = "Use and share",
+		applied = "Skin shared!", removed = "Skin removed",
 		cantShare = "Other players can't download this skin: ", whyMissing = "the addon is private, hidden or doesn't exist.",
 		whyTag = "the addon isn't tagged \"Model\" on the Workshop.", whySize = "the addon is bigger than %d MB.",
 		whyBlocked = "the server blocked this addon.", blockedOff = "SkinShare is disabled on this server or gamemode.",
-		blockedAdmin = "Only admins can use SkinShare on this server.", blockedBan = "You're banned from SkinShare on this server.",
+		blockedAdmin = "Only admins can use SkinShare on this server.", blockedBan = "An admin turned off skins for you on this server.",
 		copyPath = "Copy model path", rescan = "Rescan models", random = "Random model", noFavsRandom = "You have no favorites yet.",
-		admin = "Admin", aEnabled = "SkinShare enabled", aAdminOnly = "Only admins can use it", aCooldown = "Cooldown between changes (s)",
-		aMaxSize = "Max addon size (MB)", aGamemodes = "Blocked gamemodes (comma-separated, Enter to save)", aBlockGM = "Block current gamemode",
-		aAddons = "Blocked addons (Workshop IDs, comma-separated, Enter to save)", aPlayers = "Players (click for actions)",
-		aStrip = "Remove their skin", aBlockAddon = "Block this addon", aBan = "Ban from SkinShare", aUnban = "Unban",
-		aCopySID = "Copy SteamID", aNoSkin = "no skin", aBanned = "BANNED" },
+		admin = "Admin", aPlayers = "Players", aBlocked = "Blocked skins", aServer = "Server",
+		aStrip = "Remove their skin", aBlockSkin = "Block this skin for everyone", aBan = "Don't let them use skins", aUnban = "Let them use skins again",
+		aUnblock = "Unblock", aNoSkin = "no skin", aBanned = "can't use skins",
+		aPlayersHint = "Click a player to remove their skin, block that skin for everyone, or stop them from using skins.",
+		aNoneBlocked = "No blocked skins. To block one, go to Players and click whoever is wearing it.",
+		aBlockedHint = "Nobody can use these skins on this server.",
+		aEnabled = "SkinShare enabled", aThisMode = "Enabled in this gamemode (%s)", aAdminOnly = "Only admins can use it",
+		aOffIn = "Disabled in: %s", aCooldown = "Wait between changes (s)", aMaxSize = "Max addon size (MB)" },
 	es = { search = "Buscar...", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
 		face = "Cara", colors = "Colores", playercolor = "Color del jugador", weaponcolor = "Color del arma (physgun, etc.)",
 		delete = "Borrar", load = "Cargar", favorite = "Favorito", namePrompt = "Nombre:", rename = "Renombrar",
 		addFav = "Agregar a favoritos", select = "Seleccionar", rebuild = "Regenerar ícono", overwrite = "Sobrescribir con el actual", noFavs = "Clic derecho en un modelo para agregarlo aquí.",
 		hint = "Arrastra: girar   Rueda: zoom   Clic derecho: favorito",
 		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir",
+		applied = "¡Skin compartida!", removed = "Skin quitada",
 		cantShare = "Los demás no pueden descargar esta skin: ", whyMissing = "el addon es privado, está oculto o no existe.",
 		whyTag = "el addon no tiene el tag \"Model\" en el Workshop.", whySize = "el addon pesa más de %d MB.",
 		whyBlocked = "el server bloqueó este addon.", blockedOff = "SkinShare está desactivado en este server o modo de juego.",
-		blockedAdmin = "En este server solo los admins pueden usar SkinShare.", blockedBan = "Estás baneado de SkinShare en este server.",
+		blockedAdmin = "En este server solo los admins pueden usar SkinShare.", blockedBan = "Un admin te quitó el permiso de usar skins en este server.",
 		copyPath = "Copiar ruta del modelo", rescan = "Reescanear modelos", random = "Modelo aleatorio", noFavsRandom = "Todavía no tienes favoritos.",
-		admin = "Admin", aEnabled = "SkinShare activado", aAdminOnly = "Solo los admins pueden usarlo", aCooldown = "Espera entre cambios (s)",
-		aMaxSize = "Tamaño máximo del addon (MB)", aGamemodes = "Modos bloqueados (separados por coma, Enter para guardar)", aBlockGM = "Bloquear el modo actual",
-		aAddons = "Addons bloqueados (IDs del Workshop, separados por coma, Enter para guardar)", aPlayers = "Jugadores (clic para acciones)",
-		aStrip = "Quitarle la skin", aBlockAddon = "Bloquear este addon", aBan = "Banear de SkinShare", aUnban = "Desbanear",
-		aCopySID = "Copiar SteamID", aNoSkin = "sin skin", aBanned = "BANEADO" },
+		admin = "Admin", aPlayers = "Jugadores", aBlocked = "Skins bloqueadas", aServer = "Server",
+		aStrip = "Quitarle la skin", aBlockSkin = "Bloquear esta skin para todos", aBan = "No dejar que use skins", aUnban = "Dejar que vuelva a usar skins",
+		aUnblock = "Desbloquear", aNoSkin = "sin skin", aBanned = "no puede usar skins",
+		aPlayersHint = "Haz clic en un jugador para quitarle la skin, bloquear esa skin para todos o no dejar que use skins.",
+		aNoneBlocked = "No hay skins bloqueadas. Para bloquear una, ve a Jugadores y haz clic en quien la trae puesta.",
+		aBlockedHint = "Nadie puede usar estas skins en este server.",
+		aEnabled = "SkinShare activado", aThisMode = "Activado en este modo de juego (%s)", aAdminOnly = "Solo los admins pueden usarlo",
+		aOffIn = "Desactivado en: %s", aCooldown = "Espera entre cambios (s)", aMaxSize = "Tamaño máximo del addon (MB)" },
 }
 local function lang()
 	local l = LANG:GetString()
@@ -448,12 +458,14 @@ local function share(c)
 			if why then warn(T("cantShare") .. T(why):format(CV.maxsize:GetInt())) end
 		end)
 	end
+	return true
 end
 
 local function slider(parent, label, min, max, decimals, val, onChange)
 	local s = parent:Add("DNumSlider")
 	s:Dock(TOP) s:SetText(label) s:SetDark(true) s:SetDecimals(decimals) s:SetMinMax(min, max) s:SetValue(val)
 	s.OnValueChanged = function(_, v) onChange(decimals == 0 and math.Round(v) or v) end
+	return s
 end
 
 -- skin plano oscuro para toda la ventana (botones, pestañas, sliders, scroll, menús).
@@ -614,82 +626,137 @@ concommand.Add("skinshare", function()
 	local wcol = mixer(T("weaponcolor"), me:GetWeaponColor())
 	sheet:AddSheet(T("colors"), colors, "icon16/color_wheel.png")
 
-	-- Admin: config del server y jugadores; todo pasa por skinshare_admin, que el server valida
+	-- Admin: tarjetas con acciones a la vista; todo pasa por skinshare_admin, que el server valida
 	if me:IsAdmin() then
-		local adm = vgui.Create("DScrollPanel")
-		local function set(k, v)
+		-- subpestañas: para agregar otra, un DScrollPanel más aquí y su parte en build()
+		local sub = vgui.Create("DPropertySheet")
+		local tabs = { players = vgui.Create("DScrollPanel"), blocked = vgui.Create("DScrollPanel"), server = vgui.Create("DScrollPanel") }
+		sub:AddSheet(T("aPlayers"), tabs.players, "icon16/group.png")
+		sub:AddSheet(T("aBlocked"), tabs.blocked, "icon16/shield.png")
+		sub:AddSheet(T("aServer"), tabs.server, "icon16/cog.png")
+		local adm -- pestaña que build() está llenando; los helpers de abajo agregan ahí
+		local build
+		local function later() timer.Simple(0.4, function() if IsValid(sub) then build() end end) end
+		local function run(...) RunConsoleCommand("skinshare_admin", ...) later() end
+		local function set(k, v) -- con espera: los sliders mandan un valor por tick
 			timer.Create("skinshare_set_" .. k, 0.3, 1, function() RunConsoleCommand("skinshare_admin", "set", k, tostring(v)) end)
 		end
-		local function label(text)
-			local l = adm:Add("DLabel")
-			l:Dock(TOP) l:DockMargin(8, 12, 8, 2) l:SetText(text) l:SetDark(true) l:SetFont("DermaDefaultBold")
+		local function items(cv)
+			local t = {}
+			for v in cv:GetString():gmatch("[^,%s]+") do t[#t + 1] = v end
+			return t
 		end
-		local function check(k, text)
-			local c = adm:Add("DCheckBoxLabel")
-			c:Dock(TOP) c:DockMargin(8, 8, 8, 0) c:SetText(text) c:SetDark(true) c:SetValue(CV[k]:GetBool())
-			c.OnChange = function(_, v) set(k, v and 1 or 0) end
+		local function without(cv, v)
+			local t = {}
+			for _, x in ipairs(items(cv)) do if x:lower() ~= v:lower() then t[#t + 1] = x end end
+			return table.concat(t, ",")
 		end
-		local function entry(k, text)
-			label(text)
-			local e = adm:Add("DTextEntry")
-			e:Dock(TOP) e:DockMargin(8, 0, 8, 0) e:SetTall(24) e:SetValue(CV[k]:GetString())
-			e.OnEnter = function(s) set(k, s:GetValue()) end
-			return e
+		local function with(cv, v)
+			local t = items(cv)
+			t[#t + 1] = v
+			return table.concat(t, ",")
 		end
-		check("enabled", T("aEnabled"))
-		check("adminonly", T("aAdminOnly"))
-		slider(adm, T("aCooldown"), 0, 60, 0, CV.cooldown:GetInt(), function(v) set("cooldown", v) end)
-		slider(adm, T("aMaxSize"), 10, 2048, 0, CV.maxsize:GetInt(), function(v) set("maxsize", v) end)
-		for _, c in ipairs(adm:GetCanvas():GetChildren()) do c:DockMargin(8, 4, 8, 0) end
-		local gms = entry("gamemodes", T("aGamemodes"))
-		local blockGM = adm:Add("DButton")
-		blockGM:Dock(TOP) blockGM:DockMargin(8, 4, 8, 0) blockGM:SetTall(24) blockGM:SetText(T("aBlockGM") .. " (" .. engine.ActiveGamemode() .. ")")
-		blockGM.DoClick = function()
-			if listed(CV.gamemodes, engine.ActiveGamemode()) then return end
-			local v = gms:GetValue():gsub("%s", "")
-			v = v == "" and engine.ActiveGamemode() or v .. "," .. engine.ActiveGamemode()
-			gms:SetValue(v) set("gamemodes", v)
-		end
-		local addonsEntry = entry("addons", T("aAddons"))
 
-		label(T("aPlayers"))
-		local rows = adm:Add("DPanel")
-		rows:Dock(TOP) rows:DockMargin(8, 0, 8, 8) rows:SetPaintBackground(false)
-		local function refreshPlayers()
-			if not IsValid(rows) then return end
-			rows:Clear()
+		local function hint(text)
+			local l = adm:Add("DLabel")
+			l:Dock(TOP) l:DockMargin(10, 8, 8, 4) l:SetText(text) l:SetTextColor(TEXT_DIM) l:SetWrap(true) l:SetAutoStretchVertical(true)
+		end
+		local function card(h)
+			local c = adm:Add("DPanel")
+			c:Dock(TOP) c:DockMargin(6, 6, 6, 0) c:SetTall(h) c:DockPadding(6, 6, 6, 6)
+			c.Paint = function(_, w, hh) draw.RoundedBox(6, 0, 0, w, hh, SURFACE) end
+			return c
+		end
+		local function modelIcon(c, mdl)
+			local icon = c:Add("SpawnIcon")
+			icon:Dock(LEFT) icon:SetWide(c:GetTall() - 12) icon:SetModel(mdl) icon:SetMouseInputEnabled(false)
+		end
+		local function iconButton(c, img, tip, fn)
+			local b = c:Add("DButton")
+			b:Dock(RIGHT) b:DockMargin(4, 0, 0, 0) b:SetWide(c:GetTall() - 12) b:SetText("") b:SetImage(img) b:SetTooltip(tip) b.DoClick = fn
+		end
+		local function lines(c, top, bottom) -- va al final: FILL toma lo que dejaron los demás
+			local t = c:Add("DPanel")
+			t:Dock(FILL) t:DockMargin(10, 0, 0, 0) t.top, t.bottom = top, bottom
+			t.Paint = function(s, _, h)
+				draw.SimpleText(s.top, "DermaDefaultBold", 0, h / 2 - 1, TEXT, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText(s.bottom, "DermaDefault", 0, h / 2 + 1, TEXT_DIM, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+			end
+			return t
+		end
+		local function check(text, value, onChange)
+			local c = adm:Add("DCheckBoxLabel")
+			c:Dock(TOP) c:DockMargin(10, 10, 8, 0) c:SetText(text) c:SetDark(true) c:SetValue(value)
+			c.OnChange = function(_, v) onChange(v) end
+		end
+
+		build = function()
+			for _, t in pairs(tabs) do t:Clear() end
+
+			adm = tabs.players
+			hint(T("aPlayersHint"))
 			for _, p in ipairs(player.GetAll()) do
-				local o = others[p]
-				local b = rows:Add("DButton")
-				b:Dock(TOP) b:DockMargin(0, 0, 0, 2) b:SetTall(24) b:SetContentAlignment(4) b:SetTextInset(8, 0)
-				b:SetText(p:Nick() .. "   ·   " .. (o and string.StripExtension(string.GetFileFromFilename(o.mdl)) or T("aNoSkin"))
-					.. (p:GetNWBool("skinshare_banned") and "   [" .. T("aBanned") .. "]" or ""))
-				local sid = p:SteamID64() or ""
-				local function run(...) RunConsoleCommand("skinshare_admin", ...) timer.Simple(0.5, refreshPlayers) end
-				b.DoClick = function()
-					local opts = { { T("aStrip"), "icon16/user_delete.png", function() run("strip", sid) end } }
+				local o = p:GetNWString("skinshare_mdl") ~= "" and { wsid = p:GetNWString("skinshare_wsid"), mdl = p:GetNWString("skinshare_mdl") }
+				local banned, sid = p:GetNWBool("skinshare_banned"), p:IsBot() and p:Nick() or p:SteamID64()
+				-- toda la tarjeta es clicable (izquierdo o derecho) y abre las acciones con texto
+				local c = card(56)
+				c:SetCursor("hand")
+				c.Paint = function(self, w, h) draw.RoundedBox(6, 0, 0, w, h, self:IsHovered() and SURFACE_HI or SURFACE) end
+				c.OnMousePressed = function()
+					local opts = {}
+					if o then opts[#opts + 1] = { T("aStrip"), "icon16/user_delete.png", function() run("strip", sid) end } end
 					if o and o.wsid ~= "0" then
-						opts[#opts + 1] = { T("aBlockAddon") .. " (" .. o.wsid .. ")", "icon16/shield.png", function()
-							run("blockaddon", o.wsid)
-							local cur = addonsEntry:GetValue()
-							addonsEntry:SetValue(cur == "" and o.wsid or cur .. "," .. o.wsid)
-						end }
+						opts[#opts + 1] = { T("aBlockSkin"), "icon16/shield.png", function() blockedMdl[o.wsid] = o.mdl run("blockaddon", o.wsid) end }
 					end
-					opts[#opts + 1] = false
-					if p:GetNWBool("skinshare_banned") then
-						opts[#opts + 1] = { T("aUnban"), "icon16/accept.png", function() run("unban", sid) end }
-					else
-						opts[#opts + 1] = { T("aBan"), "icon16/cancel.png", function() run("ban", sid) end }
-					end
-					opts[#opts + 1] = { T("aCopySID"), "icon16/page_copy.png", function() SetClipboardText(p:SteamID()) end }
+					if #opts > 0 then opts[#opts + 1] = false end
+					opts[#opts + 1] = banned and { T("aUnban"), "icon16/accept.png", function() run("unban", sid) end }
+						or { T("aBan"), "icon16/cancel.png", function() run("ban", sid) end }
 					menu(opts)
 				end
-				b.DoRightClick = b.DoClick
+				modelIcon(c, o and o.mdl or p:GetModel())
+				-- también como botones a la vista (de derecha a izquierda: permiso, bloquear, quitar)
+				iconButton(c, banned and "icon16/accept.png" or "icon16/cancel.png", T(banned and "aUnban" or "aBan"), function() run(banned and "unban" or "ban", sid) end)
+				if o and o.wsid ~= "0" then
+					iconButton(c, "icon16/shield.png", T("aBlockSkin"), function() blockedMdl[o.wsid] = o.mdl run("blockaddon", o.wsid) end)
+				end
+				if o then iconButton(c, "icon16/user_delete.png", T("aStrip"), function() run("strip", sid) end) end
+				local t = lines(c, p:Nick(), (o and string.StripExtension(string.GetFileFromFilename(o.mdl)) or T("aNoSkin"))
+					.. (banned and "   ·   " .. T("aBanned") or ""))
+				t:SetMouseInputEnabled(false)
 			end
-			rows:SetTall(#player.GetAll() * 26)
+
+			adm = tabs.blocked
+			local ids = items(CV.addons)
+			hint(#ids == 0 and T("aNoneBlocked") or T("aBlockedHint"))
+			for _, wsid in ipairs(ids) do
+				local c = card(56)
+				if blockedMdl[wsid] then modelIcon(c, blockedMdl[wsid]) end
+				iconButton(c, "icon16/arrow_undo.png", T("aUnblock"), function() run("set", "addons", without(CV.addons, wsid)) end)
+				local t = lines(c, "Workshop " .. wsid, "steamcommunity.com/sharedfiles/filedetails/?id=" .. wsid)
+				steamworks.FileInfo(wsid, function(info) if info and info.title and IsValid(t) then t.top = info.title end end)
+			end
+
+			adm = tabs.server
+			local gm = engine.ActiveGamemode()
+			check(T("aEnabled"), CV.enabled:GetBool(), function(v) set("enabled", v and 1 or 0) end)
+			check(T("aThisMode"):format(gm), not listed(CV.gamemodes, gm), function(v)
+				set("gamemodes", v and without(CV.gamemodes, gm) or with(CV.gamemodes, gm))
+			end)
+			check(T("aAdminOnly"), CV.adminonly:GetBool(), function(v) set("adminonly", v and 1 or 0) end)
+			for _, other in ipairs(items(CV.gamemodes)) do
+				if other:lower() ~= gm:lower() then
+					local c = card(36)
+					iconButton(c, "icon16/arrow_undo.png", T("aUnblock"), function() run("set", "gamemodes", without(CV.gamemodes, other)) end)
+					lines(c, T("aOffIn"):format(other), "")
+				end
+			end
+			slider(adm, T("aCooldown"), 0, 60, 0, CV.cooldown:GetInt(), function(v) set("cooldown", v) end):DockMargin(10, 10, 8, 0)
+			slider(adm, T("aMaxSize"), 10, 2048, 0, CV.maxsize:GetInt(), function(v) set("maxsize", v) end):DockMargin(10, 4, 8, 0)
 		end
-		refreshPlayers()
-		sheet:AddSheet(T("admin"), adm, "icon16/shield.png")
+		build()
+		local adminTab = sheet:AddSheet(T("admin"), sub, "icon16/shield.png").Tab
+		-- al volver a la pestaña se ve la skin que cada quien trae ahora
+		sheet.OnActiveTabChanged = function(_, _, new) if new == adminTab then build() end end
 	end
 
 	-- preview: arrastra para girar, rueda para zoom
@@ -852,7 +919,7 @@ concommand.Add("skinshare", function()
 	button(bar, T("remove"), LEFT, function()
 		data.last = nil saveData(data)
 		choose({ wsid = "none" })
-		f:Close()
+		notification.AddLegacy(T("removed"), NOTIFY_GENERIC, 3)
 	end)
 	local langBtn = button(bar, lang():upper(), RIGHT, function()
 		LANG:SetString(lang() == "en" and "es" or "en")
@@ -870,8 +937,11 @@ concommand.Add("skinshare", function()
 	local applyBtn = button(bar, T("apply"), FILL, function()
 		if not sel.mdl then return end
 		data.last = current() saveData(data)
-		share(data.last)
-		f:Close()
+		-- la ventana se queda abierta para seguir probando (p. ej. frente a un espejo)
+		if share(data.last) then
+			notification.AddLegacy(T("applied"), NOTIFY_GENERIC, 3)
+			surface.PlaySound("buttons/button14.wav")
+		end
 	end)
 	applyBtn:SetFont("DermaDefaultBold") applyBtn:SetTextColor(color_white)
 	applyBtn.Paint = function(s, w, h) draw.RoundedBox(4, 0, 0, w, h, s:IsHovered() and ACCENT_HI or ACCENT) end

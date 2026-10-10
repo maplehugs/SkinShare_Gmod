@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.12.1 — 2026-10-10
+- Panel Admin rehecho, con subpestañas:
+  - **Jugadores:** tarjetas con el ícono de la skin y 3 botones (quitar skin, bloquear esa skin para todos, no dejar que use skins). Clic en la tarjeta abre las mismas acciones con texto. La skin de cada jugador se lee del server (antes a veces no aparecía).
+  - **Skins bloqueadas:** lista con el nombre del addon y botón Desbloquear.
+  - **Server:** casillas (activado, activado en este modo de juego, solo admins) y sliders. Sin campos de texto.
+- "Usar y compartir" y "Quitar skin" ya no cierran la ventana: sale un aviso y puedes seguir probando skins (en un espejo, por ejemplo).
+
 ## v0.12.0 — 2026-10-10
 - Panel **Admin** en el menú (solo admins): activar/desactivar, solo admins, espera entre cambios, tamaño máximo del addon, modos de juego bloqueados (con botón para el modo actual), addons bloqueados y lista de jugadores para quitar la skin, bloquear su addon, banear/desbanear o copiar SteamID.
 - Convars del server `sv_skinshare_*` (replicadas) y comando `skinshare_admin` para consola/RCON. El baneo se guarda con PData.

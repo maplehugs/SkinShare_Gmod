@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.9.0 — 2026-10-09
+- Interfaz en inglés y español: sigue el idioma de GMod, con botón EN/ES y el convar `skinshare_language`.
+- Se ocultan los modelos inválidos (ERROR, animaciones) de la cuadrícula.
+- Ícono y descripción del Workshop.
+
 ## v0.8.0 — 2026-10-09
 - Fix: las skins ya no se pierden si el Lua se recarga en caliente (la tabla del server ahora es global).
 - Fix: TTT ya no pisa tu color al empezar cada ronda (hook `TTTPlayerSetColor`).

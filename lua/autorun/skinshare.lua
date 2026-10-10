@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.8.0"
+local VERSION = "0.9.0"
 print("SkinShare v" .. VERSION)
 
 local MAX_SIZE = 300 * 1024 * 1024
@@ -125,7 +125,7 @@ if SERVER then
 		end
 
 		if (ply.skinshareNext or 0) > CurTime() then
-			ply:ChatPrint("SkinShare: espera un segundo y vuelve a intentarlo.")
+			ply:ChatPrint("SkinShare: too fast, wait a second and try again.")
 			return
 		end
 		ply.skinshareNext = CurTime() + 1
@@ -284,6 +284,25 @@ concommand.Add("skinshare_debug", function()
 	end
 end)
 
+-- idioma: auto sigue el idioma de GMod (gmod_language); skinshare_language en/es lo fuerza
+local LANG = CreateClientConVar("skinshare_language", "auto", true, false, "auto, en or es")
+local STRINGS = {
+	en = { search = "Search...", name = "Name", models = "Models", favorites = "Favorites", bodygroups = "Bodygroups",
+		face = "Face", colors = "Colors", playercolor = "Player color", weaponcolor = "Weapon color (physgun, etc.)",
+		delete = "Delete", load = "Load", save = "Save current", favorite = "Favorite", namePrompt = "Name:",
+		remove = "Remove skin", reset = "Reset", apply = "Use and share" },
+	es = { search = "Buscar...", name = "Nombre", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
+		face = "Cara", colors = "Colores", playercolor = "Color del jugador", weaponcolor = "Color del arma (physgun, etc.)",
+		delete = "Borrar", load = "Cargar", save = "Guardar actual", favorite = "Favorito", namePrompt = "Nombre:",
+		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir" },
+}
+local function lang()
+	local l = LANG:GetString()
+	if l == "auto" then l = GetConVar("gmod_language"):GetString():sub(1, 2) end
+	return STRINGS[l] and l or "en"
+end
+local function T(key) return STRINGS[lang()][key] end
+
 local function slider(parent, label, min, max, decimals, val, onChange)
 	local s = parent:Add("DNumSlider")
 	s:Dock(TOP) s:SetText(label) s:SetDark(true) s:SetDecimals(decimals) s:SetMinMax(min, max) s:SetValue(val)
@@ -315,28 +334,28 @@ concommand.Add("skinshare", function()
 	-- Modelos
 	local models = vgui.Create("DPanel")
 	local search = models:Add("DTextEntry")
-	search:Dock(TOP) search:SetPlaceholderText("Buscar...") search:SetUpdateOnType(true)
+	search:Dock(TOP) search:SetPlaceholderText(T("search")) search:SetUpdateOnType(true)
 	local scroll = models:Add("DScrollPanel")
 	scroll:Dock(FILL)
 	local grid = scroll:Add("DIconLayout")
 	grid:Dock(TOP) grid:SetSpaceX(4) grid:SetSpaceY(4)
-	sheet:AddSheet("Modelos", models, "icon16/user.png")
+	sheet:AddSheet(T("models"), models, "icon16/user.png")
 
 	-- Favoritos
 	local favs = vgui.Create("DPanel")
 	local favBar = favs:Add("DPanel")
 	favBar:Dock(BOTTOM) favBar:SetTall(28) favBar:SetPaintBackground(false)
 	local favList = favs:Add("DListView")
-	favList:Dock(FILL) favList:SetMultiSelect(false) favList:AddColumn("Nombre")
-	sheet:AddSheet("Favoritos", favs, "icon16/star.png")
+	favList:Dock(FILL) favList:SetMultiSelect(false) favList:AddColumn(T("name"))
+	sheet:AddSheet(T("favorites"), favs, "icon16/star.png")
 
 	-- Bodygroups, skin y caras
 	local bgPanel = vgui.Create("DScrollPanel")
 	bgPanel:DockPadding(8, 8, 8, 8)
-	local bgTab = sheet:AddSheet("Bodygroups", bgPanel, "icon16/group.png").Tab
+	local bgTab = sheet:AddSheet(T("bodygroups"), bgPanel, "icon16/group.png").Tab
 	local flexPanel = vgui.Create("DScrollPanel")
 	flexPanel:DockPadding(8, 8, 8, 8)
-	local flexTab = sheet:AddSheet("Cara", flexPanel, "icon16/emoticon_wink.png").Tab
+	local flexTab = sheet:AddSheet(T("face"), flexPanel, "icon16/emoticon_wink.png").Tab
 
 	-- Colores
 	local colors = vgui.Create("DPanel")
@@ -347,9 +366,9 @@ concommand.Add("skinshare", function()
 		m:Dock(TOP) m:DockMargin(8, 4, 8, 0) m:SetTall(180) m:SetAlphaBar(false) m:SetPalette(false) m:SetVector(vec)
 		return m
 	end
-	local pcol = mixer("Color del jugador", me:GetPlayerColor())
-	local wcol = mixer("Color del arma (physgun, etc.)", me:GetWeaponColor())
-	sheet:AddSheet("Colores", colors, "icon16/color_wheel.png")
+	local pcol = mixer(T("playercolor"), me:GetPlayerColor())
+	local wcol = mixer(T("weaponcolor"), me:GetWeaponColor())
+	sheet:AddSheet(T("colors"), colors, "icon16/color_wheel.png")
 
 	-- preview: arrastra para girar, rueda para zoom
 	local preview = f:Add("DModelPanel")
@@ -423,7 +442,7 @@ concommand.Add("skinshare", function()
 		grid:Clear()
 		local q = search:GetValue():lower()
 		for mdl, name in SortedPairsByValue(list) do
-			if q == "" or name:lower():find(q, 1, true) then
+			if (q == "" or name:lower():find(q, 1, true)) and util.IsValidModel(mdl) then
 				local icon = grid:Add("SpawnIcon")
 				icon:SetSize(64, 64) icon:SetModel(mdl) icon:SetTooltip(name)
 				icon.DoClick = function() pick(mdl) end
@@ -443,29 +462,35 @@ concommand.Add("skinshare", function()
 		return line and line.fav
 	end
 	favList.DoDoubleClick = function(_, _, line) load(data.favs[line.fav].cfg) end
-	button(favBar, "Borrar", RIGHT, function()
+	button(favBar, T("delete"), RIGHT, function()
 		local i = selectedFav()
 		if i then table.remove(data.favs, i) saveData(data) refreshFavs() end
 	end)
-	button(favBar, "Cargar", RIGHT, function()
+	button(favBar, T("load"), RIGHT, function()
 		local i = selectedFav()
 		if i then load(data.favs[i].cfg) end
 	end)
-	button(favBar, "Guardar actual", FILL, function()
+	button(favBar, T("save"), FILL, function()
 		if not sel.mdl then return end
-		Derma_StringRequest("Favorito", "Nombre:", string.StripExtension(string.GetFileFromFilename(sel.mdl)), function(name)
+		Derma_StringRequest(T("favorite"), T("namePrompt"), string.StripExtension(string.GetFileFromFilename(sel.mdl)), function(name)
 			if name == "" then return end
 			table.insert(data.favs, { name = name, cfg = current() }) saveData(data) refreshFavs()
 		end)
 	end)
 
-	button(bar, "Quitar skin", LEFT, function()
+	button(bar, T("remove"), LEFT, function()
 		data.last = nil saveData(data)
 		choose({ wsid = "none" })
 		f:Close()
 	end)
-	button(bar, "Reiniciar", LEFT, function() if sel.mdl then pick(sel.mdl) end end)
-	button(bar, "Usar y compartir", FILL, function()
+	local langBtn = button(bar, lang():upper(), RIGHT, function()
+		LANG:SetString(lang() == "en" and "es" or "en")
+		f:Close()
+		timer.Simple(0, function() RunConsoleCommand("skinshare") end)
+	end)
+	langBtn:SetWide(40)
+	button(bar, T("reset"), LEFT, function() if sel.mdl then pick(sel.mdl) end end)
+	button(bar, T("apply"), FILL, function()
 		if not sel.mdl then return end
 		data.last = current() saveData(data)
 		choose(data.last)

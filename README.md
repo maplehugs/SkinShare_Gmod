@@ -24,7 +24,7 @@ Menú principal → **Addons** → activa solo los que quieras → **Presets →
 En un listen server los clientes descargan los addons que tiene activos el host, así que cambiar el preset limita lo que se les envía.
 
 ## Limitaciones
-- En los addons de los clientes, los playermodels se detectan por ruta (carpetas con `player`), porque su Lua no se ejecuta en un server ajeno.
+- En los addons de los clientes, los playermodels se detectan leyendo el `.mdl` (que incluya `m_anm`/`f_anm`/`z_anm`), porque su Lua no se ejecuta en un server ajeno. La primera vez que se abre el menú puede tardar un poco.
 - Solo aparecen los modelos que el addon registra como playermodel (`player_manager.AddValidModel`), igual que en el selector de Sandbox.
 - El addon de la skin tiene que ser público en el Workshop (se descarga por ID).
 - Si un jugador no estaba a la vista cuando se montó la skin, puede verse como ERROR hasta su próximo respawn.

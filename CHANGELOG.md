@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.6.1 — 2026-10-09
+- Fix: los playermodels de los addons de los clientes se detectan por las animaciones de jugador que incluye el .mdl (`m_anm`/`f_anm`/`z_anm`), no por la ruta. Ahora aparecen skins como Mirage o Realistic Fish Head.
+
 ## v0.6.0 — 2026-10-09
 - Pantalla de carga personalizada (`lua/autorun/server/loadingurl.lua`).
 

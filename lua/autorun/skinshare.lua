@@ -158,12 +158,24 @@ end
 
 -- En server ajeno el cliente no corre el Lua de SUS addons, así que sus playermodels no se registran
 -- en player_manager. Se buscan los .mdl directamente en sus addons montados.
+-- Un playermodel incluye las animaciones de jugador (models/m_anm.mdl, f_anm o z_anm); brazos y props no.
+local isPM = {} -- caché por sesión
+local function isPlayerModel(p)
+	if isPM[p] == nil then
+		local fh = file.Open(p, "rb", "GAME")
+		-- ponytail: lee el .mdl entero; la primera vez tarda si hay packs con miles de props
+		local data = fh and fh:Size() > 0 and fh:Read(fh:Size()) or ""
+		if fh then fh:Close() end
+		isPM[p] = data:find("models/[mfz]_anm%.mdl") ~= nil
+	end
+	return isPM[p]
+end
+
 local function findModels(dir, path, out)
 	local files, dirs = file.Find(dir .. "*", path)
 	for _, f in ipairs(files or {}) do
 		local p = (dir .. f):lower()
-		-- ponytail: heurística por ruta; un playermodel fuera de una carpeta "player" no aparece
-		if p:sub(-4) == ".mdl" and p:find("player", 1, true) and not p:find("arms", 1, true) and not p:find("hands", 1, true) then
+		if p:sub(-4) == ".mdl" and isPlayerModel(p) then
 			out[p] = path .. " / " .. string.StripExtension(f)
 		end
 	end

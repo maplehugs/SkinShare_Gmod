@@ -1,0 +1,6 @@
+{
+	"title": "SkinShare",
+	"type": "tool",
+	"tags": ["fun"],
+	"ignore": ["*.md", ".git*"]
+}

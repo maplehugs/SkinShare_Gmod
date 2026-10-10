@@ -30,7 +30,7 @@ En un listen server los clientes descargan los addons que tiene activos el host,
 - Si un jugador no estaba a la vista cuando se montó la skin, puede verse como ERROR hasta su próximo respawn.
 
 ## Config del server
-Panel Admin en el menú, o desde la consola: `sv_skinshare_enabled`, `sv_skinshare_adminonly`, `sv_skinshare_cooldown`, `sv_skinshare_maxsize`, `sv_skinshare_block_gamemodes`, `sv_skinshare_block_addons`, y `skinshare_admin strip|ban|unban <nombre|steamid>` / `blockaddon <wsid>`. Hook compartido `SkinShareCanUse(ply)`: devolver `false` lo bloquea.
+Panel Admin en el menú, o desde la consola: `sv_skinshare_enabled`, `sv_skinshare_adminonly`, `sv_skinshare_cooldown`, `sv_skinshare_maxsize`, `sv_skinshare_block_gamemodes`, `sv_skinshare_block_addons`, `sv_skinshare_priority` (gana sobre Enhanced PlayerModel Selector u otros que fuercen modelos), y `skinshare_admin strip|ban|unban <nombre|steamid>` / `blockaddon <wsid>`. Hook compartido `SkinShareCanUse(ply)`: devolver `false` lo bloquea.
 
 ## Versiones
 Se usan tags de git con semver (`v0.1.0`). Los cambios están en `CHANGELOG.md`.

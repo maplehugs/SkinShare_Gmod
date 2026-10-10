@@ -6,6 +6,10 @@
 
 Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] skin they have and send it to everyone else.
 
+[quote][b]⚠ Using another playermodel selector?[/b] (Enhanced PlayerModel Selector, or any mod that forces models)
+SkinShare skins [b]win by default[/b]: players with a SkinShare skin keep it, everyone else keeps the other mod's model.
+Want the other mod to win instead? Admins can untick [b]Override other playermodel selectors[/b] in [b]!skin > Admin > Server[/b] (or [b]sv_skinshare_priority 0[/b]).[/quote]
+
 [hr][/hr]
 
 [h1]Features[/h1]
@@ -18,7 +22,7 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [*][b]Full customization:[/b]
 [list]
 [*]Live 3D preview: drag to rotate, scroll to zoom
-[*]Searchable icon grid of every playermodel you have
+[*]Searchable icon grid of every playermodel you have, grouped by category (like the new Sandbox selector) or by addon
 [*]Skins and bodygroups
 [*]Face (flexes)
 [*]Player and weapon color
@@ -29,7 +33,7 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [list]
 [*][b]Players:[/b] see everyone's current skin and, in one click, remove it, block that skin for everyone, or stop that player from using skins.
 [*][b]Blocked skins:[/b] everything you've blocked, with an Unblock button.
-[*][b]Server:[/b] turn SkinShare on/off, turn it off just for this gamemode (e.g. Murder, Prop Hunt), admin-only mode, cooldown and max addon size.
+[*][b]Server:[/b] turn SkinShare on/off, turn it off just for this gamemode (e.g. Murder, Prop Hunt), admin-only mode, priority over other playermodel selectors (on by default), cooldown and max addon size.
 [/list]
 [*][b]Try skins without closing the menu.[/b] "Use and share" keeps the window open, so you can keep testing in front of a mirror.
 [*][b]Extras:[/b] random model button, copy model path, rescan models without changing map.
@@ -59,6 +63,7 @@ Everything is in the Admin tab, or use these from the server console:
 [*][b]sv_skinshare_enabled 1[/b] / [b]sv_skinshare_adminonly 0[/b]
 [*][b]sv_skinshare_cooldown 1[/b]: seconds between changes (admins skip it)
 [*][b]sv_skinshare_maxsize 300[/b]: max size in MB of a shared addon
+[*][b]sv_skinshare_priority 1[/b]: SkinShare skins win over other mods that force playermodels (Enhanced PlayerModel Selector)
 [*][b]sv_skinshare_block_gamemodes "murder,prop_hunt"[/b]
 [*][b]sv_skinshare_block_addons "123,456"[/b]: Workshop IDs that can't be shared
 [*][b]skinshare_admin strip|ban|unban <name or SteamID>[/b]: remove a skin / stop or allow a player using skins
@@ -75,9 +80,6 @@ Make sure the addon is enabled in your Addons menu, then run [b]skinshare_debug[
 [b]Can anyone make everyone download anything?[/b]
 No. Only public Workshop items tagged "Model" and up to 300 MB (configurable) are shared, and admins can block any addon. Texture or sound replacement packs can't be pushed on other players.
 
-[b]Does it work with Enhanced PlayerModel Selector?[/b]
-Yes, but set [b]sv_playermodel_selector_force 0[/b]. Otherwise its force mode overrides every model change, including SkinShare's.
-
 [h1]Credits[/h1]
 The menu layout is inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=504945881]Enhanced PlayerModel Selector[/url] by LibertyForce. SkinShare is a separate implementation built around sharing skins between players.
 
@@ -91,7 +93,8 @@ Con SkinShare escribes [b]!skin[/b] en el chat, eliges cualquier skin de TUS add
 [*][b]Hecho para P2P y para jugar con amigos:[/b] cualquiera puede elegir cualquier skin y mandársela a los demás. Solo el host necesita el addon.
 [*][b]Funciona en TTT y en cualquier modo:[/b] la skin se mantiene entre rondas.
 [*][b]Se acuerda de ti:[/b] tu skin se guarda y se te pone sola cada vez que entras, aunque reinicies GMod.
-[*]Preview 3D, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
+[*]Preview 3D, modelos por categoría, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
+[*][b]¿Usas otro selector (Enhanced PlayerModel Selector)?[/b] La skin de SkinShare gana por defecto. Para que gane el otro: [b]!skin > Admin > Server[/b], o [b]sv_skinshare_priority 0[/b].
 [*][b]Panel de admin:[/b] ver la skin de cada jugador y, con un clic, quitársela, bloquearla para todos o no dejar que use skins. También apagarlo en un modo de juego (como Murder) o dejarlo solo para admins.
 [/list]
 

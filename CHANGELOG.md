@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.13.0 — 2026-10-10
+- Prioridad sobre otros selectores de playermodel: si Enhanced PlayerModel Selector (u otro addon) fuerza los modelos, ahora gana la skin de SkinShare. Quien no tenga skin de SkinShare se queda con el modelo del otro addon. Casilla en Admin > Server (`sv_skinshare_priority`, activada por defecto).
+- Modelos agrupados por categoría, como el selector nuevo de Sandbox: la categoría que registra el addon o, si no tiene, el nombre del addon. El buscador también busca por categoría.
+
 ## v0.12.1 — 2026-10-10
 - Panel Admin rehecho, con subpestañas:
   - **Jugadores:** tarjetas con el ícono de la skin y 3 botones (quitar skin, bloquear esa skin para todos, no dejar que use skins). Clic en la tarjeta abre las mismas acciones con texto. La skin de cada jugador se lee del server (antes a veces no aparecía).

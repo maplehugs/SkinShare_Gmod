@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.12.1"
+local VERSION = "0.13.0"
 print("SkinShare v" .. VERSION)
 
 -- config del server (replicada: el cliente la lee para el menú y para filtrar lo que monta)
@@ -12,6 +12,7 @@ local CV = {
 	maxsize = CreateConVar("sv_skinshare_maxsize", 300, FLAGS, "Max size in MB of a shared addon", 1, 4096),
 	gamemodes = CreateConVar("sv_skinshare_block_gamemodes", "", FLAGS, "Comma-separated gamemodes where SkinShare is off, e.g. murder,prop_hunt"),
 	addons = CreateConVar("sv_skinshare_block_addons", "", FLAGS, "Comma-separated Workshop IDs that can't be shared"),
+	priority = CreateConVar("sv_skinshare_priority", 1, FLAGS, "SkinShare skins win over other addons that force playermodels (Enhanced PlayerModel Selector)", 0, 1),
 }
 
 local function listed(cv, v)
@@ -100,14 +101,25 @@ if SERVER then
 	local meta = FindMetaTable("Player")
 	-- SetModel vive en Entity, no en Player
 	meta.SkinShareRawSetModel = meta.SkinShareRawSetModel or FindMetaTable("Entity").SetModel
-	function meta:SetModel(m)
+	local function setModel(self, m)
+		local other = meta.SkinShareOther or meta.SkinShareRawSetModel
 		local s = active(self)
-		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m))) then
-			return self:SkinShareRawSetModel(m)
-		end
-		self:SkinShareRawSetModel(s.mdl)
-		look(self, s)
+		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m))) then return other(self, m) end
+		-- sin prioridad se le pide la skin al otro addon: si fuerza su modelo, gana él
+		local set = CV.priority:GetBool() and meta.SkinShareRawSetModel or other
+		set(self, s.mdl)
+		if self:GetModel():lower() == s.mdl:lower() then look(self, s) end
 	end
+	-- Enhanced PlayerModel Selector (force) también reemplaza Player.SetModel y lo vuelve a poner cuando
+	-- cambia su convar: nos ponemos encima otra vez y le pasamos a él lo que no es nuestra skin
+	local function wrap()
+		local cur = rawget(meta, "SetModel")
+		if cur == setModel then return end
+		if cur ~= meta.SkinShareSetModel then meta.SkinShareOther = cur end -- la de antes de un hot reload no cuenta
+		meta.SkinShareSetModel, meta.SetModel = setModel, setModel
+	end
+	wrap()
+	timer.Create("skinshare_wrap", 1, 0, wrap)
 
 	local function apply(ply)
 		local s = active(ply)
@@ -366,23 +378,31 @@ end
 
 -- En server ajeno el cliente no corre el Lua de SUS addons, así que sus playermodels no se registran
 -- en player_manager. Se buscan los .mdl directamente en sus addons montados.
+local cats = {} -- [mdl] = categoría; la llena allModels()
 local function findModels(dir, path, out)
 	local files, dirs = file.Find(dir .. "*", path)
 	for _, f in ipairs(files or {}) do
 		local p = (dir .. f):lower()
 		if p:sub(-4) == ".mdl" and isPlayerModel(p) then
 			out[p] = path .. " / " .. string.StripExtension(f)
+			cats[p] = path
 		end
 	end
 	for _, d in ipairs(dirs or {}) do findModels(dir .. d .. "/", path, out) end
 end
 
+-- categorías como el selector de Sandbox (4º argumento de AddValidModel); si el addon no puso una, el nombre del addon
+local OTHER = "#spawnmenu.category.other"
 local function allModels()
 	local list = {} -- [mdl] = nombre
 	for _, a in ipairs(engine.GetAddons()) do
 		if a.mounted and (a.models or 1) > 0 then findModels("models/", a.title, list) end
 	end
-	for name, mdl in pairs(player_manager.AllValidModels()) do list[mdl:lower()] = name end
+	for name, info in pairs(player_manager.GetAllPlayerModels()) do
+		local m = info.model:lower()
+		list[m] = name
+		cats[m] = language.GetPhrase(info.category ~= OTHER and info.category or cats[m] or OTHER)
+	end
 	return list
 end
 
@@ -416,7 +436,8 @@ local STRINGS = {
 		aNoneBlocked = "No blocked skins. To block one, go to Players and click whoever is wearing it.",
 		aBlockedHint = "Nobody can use these skins on this server.",
 		aEnabled = "SkinShare enabled", aThisMode = "Enabled in this gamemode (%s)", aAdminOnly = "Only admins can use it",
-		aOffIn = "Disabled in: %s", aCooldown = "Wait between changes (s)", aMaxSize = "Max addon size (MB)" },
+		aOffIn = "Disabled in: %s", aCooldown = "Wait between changes (s)", aMaxSize = "Max addon size (MB)",
+		aPriority = "Override other playermodel selectors", aPriorityHint = "If another addon forces playermodels (e.g. Enhanced PlayerModel Selector), SkinShare skins win. Players without a SkinShare skin keep the other addon's model." },
 	es = { search = "Buscar...", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
 		face = "Cara", colors = "Colores", playercolor = "Color del jugador", weaponcolor = "Color del arma (physgun, etc.)",
 		delete = "Borrar", load = "Cargar", favorite = "Favorito", namePrompt = "Nombre:", rename = "Renombrar",
@@ -436,7 +457,8 @@ local STRINGS = {
 		aNoneBlocked = "No hay skins bloqueadas. Para bloquear una, ve a Jugadores y haz clic en quien la trae puesta.",
 		aBlockedHint = "Nadie puede usar estas skins en este server.",
 		aEnabled = "SkinShare activado", aThisMode = "Activado en este modo de juego (%s)", aAdminOnly = "Solo los admins pueden usarlo",
-		aOffIn = "Desactivado en: %s", aCooldown = "Espera entre cambios (s)", aMaxSize = "Tamaño máximo del addon (MB)" },
+		aOffIn = "Desactivado en: %s", aCooldown = "Espera entre cambios (s)", aMaxSize = "Tamaño máximo del addon (MB)",
+		aPriority = "Prioridad sobre otros selectores de playermodel", aPriorityHint = "Si otro addon fuerza los playermodels (p. ej. Enhanced PlayerModel Selector), ganan las skins de SkinShare. Quien no tenga skin de SkinShare se queda con el modelo del otro addon." },
 }
 local function lang()
 	local l = LANG:GetString()
@@ -743,6 +765,8 @@ concommand.Add("skinshare", function()
 				set("gamemodes", v and without(CV.gamemodes, gm) or with(CV.gamemodes, gm))
 			end)
 			check(T("aAdminOnly"), CV.adminonly:GetBool(), function(v) set("adminonly", v and 1 or 0) end)
+			check(T("aPriority"), CV.priority:GetBool(), function(v) set("priority", v and 1 or 0) end)
+			hint(T("aPriorityHint"))
 			for _, other in ipairs(items(CV.gamemodes)) do
 				if other:lower() ~= gm:lower() then
 					local c = card(36)
@@ -847,8 +871,19 @@ concommand.Add("skinshare", function()
 	local function populate()
 		grid:Clear()
 		local q = search:GetValue():lower()
-		for mdl, name in SortedPairsByValue(list) do
-			if (q == "" or name:lower():find(q, 1, true)) and showable(mdl) then
+		local byCat = {}
+		for mdl, name in pairs(list) do
+			local cat = cats[mdl] or language.GetPhrase(OTHER)
+			if (q == "" or name:lower():find(q, 1, true) or cat:lower():find(q, 1, true)) and showable(mdl) then
+				byCat[cat] = byCat[cat] or {}
+				byCat[cat][mdl] = name
+			end
+		end
+		for cat, mdls in SortedPairs(byCat) do
+			local label = grid:Add("DLabel")
+			label.OwnLine = true
+			label:SetFont("DermaDefaultBold") label:SetText(cat) label:SetTextColor(TEXT_DIM) label:SetTall(22) label:SizeToContentsX()
+			for mdl, name in SortedPairsByValue(mdls) do
 				local icon = grid:Add("SpawnIcon")
 				icon:SetSize(72, 72) icon:SetModel(mdl) icon:SetTooltip(name)
 				icon.DoClick = function() pick(mdl) end

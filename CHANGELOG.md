@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.5.0 — 2026-10-09
+- Preview: arrastrar para girar, rueda para zoom.
+- Pestañas Favoritos, Cara (flexes) y Colores (jugador + arma).
+- Las manos del viewmodel van con la skin.
+- Recuerda tu última skin y te la pone al entrar.
+- Botones Reiniciar y Quitar skin (vuelves a la del modo de juego).
+
 ## v0.4.1 — 2026-10-09
 - Fix: error `SkinShareRawSetModel` nil (SetModel vive en la metatabla de Entity).
 - Fix: los clientes ahora ven sus propias skins, buscando los .mdl en sus addons montados.

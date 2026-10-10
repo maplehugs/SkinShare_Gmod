@@ -5,7 +5,8 @@ Un jugador elige uno de **sus** addons de modelos y todos los demás lo descarga
 ## Uso
 - En el chat escribe `!skin` (o `skinshare` en la consola).
 - Se abre un selector con preview en 3D girando a la izquierda y todos tus playermodels como iconos a la derecha, con buscador.
-- Pestañas **Bodygroups** (skin y partes intercambiables del modelo) y **Color** (color del jugador), y todo se ve en el preview.
+- Pestañas **Favoritos**, **Bodygroups** (skin y partes intercambiables), **Cara** (flexes) y **Colores** (jugador y arma). Todo se ve en el preview: arrastra para girar y usa la rueda para zoom.
+- Se acuerda de tu última skin (`data/skinshare.json`) y te la pone al entrar. **Quitar skin** te regresa a la del modo de juego.
 - Escoge uno y dale a **Usar y compartir**. El mod detecta solo de qué addon del Workshop viene.
 - El server lo valida y se lo manda a todos. Cada cliente lo descarga del Workshop y lo monta.
 - La skin se **fuerza** por encima de la del gamemode (TTT, etc.) y se mantiene al respawnear y funciona en cualquier gamemode (TTT incluido).

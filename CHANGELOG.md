@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.11.0 — 2026-10-10
+- Fix: `!skin` ahora funciona en Murder estando vivo (Murder reenvía el chat de los vivos; ahora lo detecta el server antes que el gamemode). También `/skin`.
+- Si los demás no pueden descargar tu skin (addon privado, sin tag Model o de más de 300 MB), te avisa en el chat en vez de fallar en silencio.
+- Ícono de SkinShare en el menú C de Sandbox.
+- `skinshare_fav "nombre"` para usar un favorito sin abrir el menú (se puede bindear).
+- Favoritos: clic derecho → Sobrescribir con el actual. Modelos: clic derecho → Regenerar ícono.
+
 ## v0.10.0 — 2026-10-10
 - Interfaz nueva con skin de Derma propio (plano oscuro, acento azul): botones, pestañas, sliders, buscador, scroll y menús combinan. El preview muestra el nombre del modelo y los controles.
 - Ícono nuevo del Workshop.

@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.10.0"
+local VERSION = "0.11.0"
 print("SkinShare v" .. VERSION)
 
 local MAX_SIZE = 300 * 1024 * 1024
@@ -13,15 +13,20 @@ local function download(wsid, cb)
 	end)
 end
 
+-- nil si se puede compartir; si no, el motivo (clave de STRINGS)
+local function rejected(info)
+	if not info then return "whyMissing" end
+	if not tostring(info.tags or ""):lower():find("model", 1, true) then return "whyTag" end
+	if (tonumber(info.size) or 0) > MAX_SIZE then return "whySize" end
+end
+
 local function mount(wsid, cb)
 	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
 	if not steamworks.FileInfo then return download(wsid, cb) end
 	-- cualquiera puede pedir una skin: solo se montan items con tag Model y de tamaño razonable,
 	-- para que nadie obligue a todos a montar un pack que reemplace texturas o sonidos
 	steamworks.FileInfo(wsid, function(info)
-		if not info or not tostring(info.tags or ""):lower():find("model", 1, true) then return end
-		if (tonumber(info.size) or 0) > MAX_SIZE then return end
-		download(wsid, cb)
+		if not rejected(info) then download(wsid, cb) end
 	end)
 end
 
@@ -180,6 +185,12 @@ if SERVER then
 		if s then ply:SetPlayerColor(s.col) return true end
 	end)
 
+	-- en el server, antes que el gamemode: Murder reenvía el chat de los vivos y en el cliente nunca llega como chat normal
+	hook.Add("PlayerSay", "skinshare", function(ply, text)
+		local t = text:lower():Trim()
+		if t == "!skin" or t == "/skin" then ply:ConCommand("skinshare") return "" end
+	end)
+
 	hook.Add("PlayerDisconnected", "skinshare", function(ply) skins[ply:SteamID64()] = nil end)
 	return
 end
@@ -290,15 +301,19 @@ local STRINGS = {
 	en = { search = "Search...", models = "Models", favorites = "Favorites", bodygroups = "Bodygroups",
 		face = "Face", colors = "Colors", playercolor = "Player color", weaponcolor = "Weapon color (physgun, etc.)",
 		delete = "Delete", load = "Load", favorite = "Favorite", namePrompt = "Name:", rename = "Rename",
-		addFav = "Add to favorites", select = "Select", noFavs = "Right-click a model to add it here.",
+		addFav = "Add to favorites", select = "Select", rebuild = "Rebuild icon", overwrite = "Overwrite with current", noFavs = "Right-click a model to add it here.",
 		hint = "Drag: rotate   Wheel: zoom   Right-click: favorite",
-		remove = "Remove skin", reset = "Reset", apply = "Use and share" },
+		remove = "Remove skin", reset = "Reset", apply = "Use and share",
+		cantShare = "Other players can't download this skin: ", whyMissing = "the addon is private, hidden or doesn't exist.",
+		whyTag = "the addon isn't tagged \"Model\" on the Workshop.", whySize = "the addon is bigger than 300 MB." },
 	es = { search = "Buscar...", models = "Modelos", favorites = "Favoritos", bodygroups = "Bodygroups",
 		face = "Cara", colors = "Colores", playercolor = "Color del jugador", weaponcolor = "Color del arma (physgun, etc.)",
 		delete = "Borrar", load = "Cargar", favorite = "Favorito", namePrompt = "Nombre:", rename = "Renombrar",
-		addFav = "Agregar a favoritos", select = "Seleccionar", noFavs = "Clic derecho en un modelo para agregarlo aquí.",
+		addFav = "Agregar a favoritos", select = "Seleccionar", rebuild = "Regenerar ícono", overwrite = "Sobrescribir con el actual", noFavs = "Clic derecho en un modelo para agregarlo aquí.",
 		hint = "Arrastra: girar   Rueda: zoom   Clic derecho: favorito",
-		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir" },
+		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir",
+		cantShare = "Los demás no pueden descargar esta skin: ", whyMissing = "el addon es privado, está oculto o no existe.",
+		whyTag = "el addon no tiene el tag \"Model\" en el Workshop.", whySize = "el addon pesa más de 300 MB." },
 }
 local function lang()
 	local l = LANG:GetString()
@@ -558,6 +573,8 @@ concommand.Add("skinshare", function()
 					menu({
 						{ T("select"), "icon16/user.png", function() pick(mdl) end },
 						{ T("addFav"), "icon16/star.png", function() pick(mdl) addFav() end },
+						false,
+						{ T("rebuild"), "icon16/arrow_refresh.png", function() icon:RebuildSpawnIcon() end },
 					})
 				end
 			end
@@ -580,6 +597,9 @@ concommand.Add("skinshare", function()
 			icon.DoRightClick = function()
 				menu({
 					{ T("load"), "icon16/user_go.png", function() load(fav.cfg) end },
+					{ T("overwrite"), "icon16/disk.png", function()
+						if sel.mdl then fav.cfg = current() saveData(data) refreshFavs() end
+					end },
 					{ T("rename"), "icon16/textfield_rename.png", function()
 						Derma_StringRequest(T("rename"), T("namePrompt"), fav.name, function(name)
 							if name ~= "" then fav.name = name saveData(data) refreshFavs() end
@@ -627,6 +647,12 @@ concommand.Add("skinshare", function()
 		data.last = current() saveData(data)
 		choose(data.last)
 		f:Close()
+		if data.last.wsid ~= "0" and steamworks.FileInfo then
+			steamworks.FileInfo(data.last.wsid, function(info)
+				local why = rejected(info)
+				if why then chat.AddText(Color(255, 90, 90), "[SkinShare] ", color_white, T("cantShare") .. T(why)) end
+			end)
+		end
 	end)
 	applyBtn:SetFont("DermaDefaultBold") applyBtn:SetTextColor(color_white)
 	applyBtn.Paint = function(s, w, h) draw.RoundedBox(4, 0, 0, w, h, s:IsHovered() and ACCENT_HI or ACCENT) end
@@ -640,6 +666,22 @@ concommand.Add("skinshare", function()
 	pick(me:GetModel(), me:GetSkin(), bg, flex)
 end)
 
-hook.Add("OnPlayerChat", "skinshare", function(ply, text)
-	if ply == LocalPlayer() and text:lower() == "!skin" then RunConsoleCommand("skinshare") return true end
+-- skinshare_fav "nombre": usa un favorito sin abrir el menú (sirve para binds)
+concommand.Add("skinshare_fav", function(_, _, args)
+	local data, name = loadData(), (args[1] or ""):lower()
+	for _, fav in ipairs(data.favs) do
+		if fav.name:lower() == name then data.last = fav.cfg saveData(data) choose(fav.cfg) return end
+	end
+	print("[SkinShare] favorite not found: " .. name)
+end, function(cmd)
+	local out = {}
+	for _, fav in ipairs(loadData().favs) do out[#out + 1] = cmd .. ' "' .. fav.name .. '"' end
+	return out
 end)
+
+-- ícono en el menú C de Sandbox
+list.Set("DesktopWindows", "SkinShare", {
+	title = "SkinShare", icon = "icon64/playermodel.png",
+	init = function(_, window) window:Remove() RunConsoleCommand("skinshare") end,
+})
+

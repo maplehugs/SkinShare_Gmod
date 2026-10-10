@@ -23,7 +23,7 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [*]Face (flexes)
 [*]Player and weapon color
 [*]Viewmodel hands (when the addon includes them)
-[*]Favorites: save and load complete setups
+[*]Favorites: right-click any model or the preview to save the full setup; click to load, right-click to rename, overwrite or delete
 [/list]
 [*][b]English and Spanish.[/b] Follows your GMod language, or switch with the EN/ES button.
 [/list]
@@ -32,13 +32,14 @@ Made for playing with friends: [b]anyone[/b] in the game can pick [b]any[/b] ski
 [olist]
 [*]The host subscribes to SkinShare and starts a game.
 [*]Friends join. They don't need to install anything.
-[*]Type [b]!skin[/b] in chat, or [b]skinshare[/b] in the console.
+[*]Type [b]!skin[/b] in chat, [b]skinshare[/b] in the console, or click the SkinShare icon in the Sandbox C menu.
 [*]Pick a model, tweak it, hit [b]Use and share[/b]. Done.
 [/olist]
 
 [h1]Commands[/h1]
 [list]
 [*][b]!skin[/b] / [b]skinshare[/b]: open the menu
+[*][b]skinshare_fav "name"[/b]: use a favorite without opening the menu (bind it to a key!)
 [*][b]skinshare_language auto | en | es[/b]: menu language
 [*][b]skinshare_debug[/b]: list which of your addons the menu can see
 [/list]
@@ -71,3 +72,6 @@ Con SkinShare escribes [b]!skin[/b] en el chat, eliges cualquier skin de TUS add
 [*][b]Se acuerda de ti:[/b] tu skin se guarda y se te pone sola cada vez que entras, aunque reinicies GMod.
 [*]Preview 3D, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
 [/list]
+
+[hr][/hr]
+[i]Tags: player model playermodel pm mdl character select selector playermodel selector menu context menu c menu skin skins skin changer bodygroup bodygroups flex flexes face color player color hands c_hands viewmodel custom favorite favorites save load share sharing download mount workshop multiplayer friends p2p listen server ttt trouble in terrorist town sandbox murder prop hunt error fix[/i]

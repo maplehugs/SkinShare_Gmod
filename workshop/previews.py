@@ -1,5 +1,6 @@
-# Adds image previews to a Workshop item via the Steamworks flat API.
+# Adds image previews to a Workshop item, or sets its description, via the Steamworks flat API.
 # usage: SteamAppId=4000 python3 previews.py <libsteam_api.so> <appid> <fileid> img1.jpg [img2.jpg ...]
+#        SteamAppId=4000 python3 previews.py <libsteam_api.so> <appid> <fileid> --desc description.txt
 import ctypes as C, sys, time
 
 lib = C.CDLL(sys.argv[1])
@@ -26,7 +27,13 @@ lib.SteamAPI_ISteamUtils_IsAPICallCompleted.restype = C.c_bool
 lib.SteamAPI_ISteamUtils_GetAPICallResult.argtypes = [C.c_void_p, C.c_uint64, C.c_void_p, C.c_int, C.c_int, C.POINTER(C.c_bool)]
 lib.SteamAPI_ISteamUtils_GetAPICallResult.restype = C.c_bool
 
+lib.SteamAPI_ISteamUGC_SetItemDescription.argtypes = [C.c_void_p, C.c_uint64, C.c_char_p]
+lib.SteamAPI_ISteamUGC_SetItemDescription.restype = C.c_bool
+
 h = lib.SteamAPI_ISteamUGC_StartItemUpdate(ugc, appid, fileid)
+if images[:1] == ["--desc"]:
+    assert lib.SteamAPI_ISteamUGC_SetItemDescription(ugc, h, open(images[1], encoding="utf-8").read().encode())
+    images = []
 for img in images:
     assert lib.SteamAPI_ISteamUGC_AddItemPreviewFile(ugc, h, img.encode(), 0), img  # 0 = k_EItemPreviewType_Image
 call = lib.SteamAPI_ISteamUGC_SubmitItemUpdate(ugc, h, None)

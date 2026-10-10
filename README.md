@@ -41,8 +41,9 @@ LD_LIBRARY_PATH=. ./gmad_linux create -folder ~/Documents/gmod-skinshare -out /t
 LD_LIBRARY_PATH=. ./gmpublish_linux update -id 3816842120 -addon /tmp/skinshare.gma -changes "v0.x.0: ..."
 ```
 
-Las capturas de la página (`gmpublish` no las sube) se agregan con la API de Steamworks, con Steam abierto:
+Las capturas y la descripción de la página (`gmpublish` no las sube) se ponen con la API de Steamworks, con Steam abierto:
 ```sh
 SteamAppId=4000 python3 workshop/previews.py ~/.local/share/Steam/steamrt64/libsteam_api.so 4000 3816842120 workshop/screenshot*.jpg
+SteamAppId=4000 python3 workshop/previews.py ~/.local/share/Steam/steamrt64/libsteam_api.so 4000 3816842120 --desc workshop/description.txt
 ```
 Ojo: agrega, no reemplaza. Las viejas se borran desde la página del item.

@@ -1,47 +1,67 @@
-[h1]SkinShare - Better Skin Selector[/h1]
-[b]Pick any playermodel you own, from chat, on anyone's server, and everyone else sees it. No reconnect, no server collection, no admin needed.[/b]
+[h1]🎭 SkinShare — Better Skin Selector[/h1]
+[h3]Type [b]!skin[/b]. Pick ANY playermodel you own. Everyone sees it. Instantly.[/h3]
 
-Type [b]!skin[/b] in chat. A menu opens with a live 3D preview of every playermodel from YOUR subscribed addons. Pick one, hit [b]Use and share[/b], and every other player downloads and mounts it mid-game.
-
-[b]Made to play with friends:[/b] anyone in the game can pick any skin they have and send it to everyone else.
-
-[h2]Why this one?[/h2]
-Normal selectors only list models the [i]server[/i] has, so your friends end up as ERRORs or can't use their own skins at all. SkinShare fixes that:
-[list]
-[*][b]Made for peer-to-peer / listen servers.[/b] Host a game from the main menu with your friends: only the host needs this addon, and clients get it automatically when they join. Dedicated servers work too.
-[*][b]Your skins, not just the host's.[/b] The menu finds playermodels in your own addons, even ones the host has never seen.
-[*][b]Everyone sees you.[/b] Other players download your skin from the Workshop on the fly, and it's only applied once they have it, so nobody sees an ERROR.
-[*][b]Works in any gamemode.[/b] TTT, Sandbox, Murder and more. Your skin is forced over the gamemode's model and stays through respawns and new rounds. Non-playermodels (like Prop Hunt props) are left alone.
-[/list]
-
-[h2]Features[/h2]
-[list]
-[*]Live 3D preview: drag to rotate, scroll to zoom
-[*]Searchable icon grid of every playermodel you have
-[*]Bodygroups and skins, face (flexes), and player and weapon color
-[*]Favorites: save and load full setups
-[*][b]Persistent:[/b] your last skin is saved on your PC and reapplied automatically whenever you join, even after restarting GMod or coming back another day
-[*]Matching first-person hands when the addon ships them
-[*]English and Spanish: follows your GMod language, or use the EN/ES button
-[/list]
-
-[h2]Commands[/h2]
-[list]
-[*][b]!skin[/b] or [b]skinshare[/b]: open the menu
-[*][b]skinshare_language auto / en / es[/b]: menu language
-[*][b]skinshare_debug[/b]: list which of your addons the menu can see
-[/list]
-
-[h2]Notes[/h2]
-[list]
-[*]Shared skins must be public Workshop items tagged "Model" (up to 300 MB). Nobody can force everyone to mount texture or sound replacement packs.
-[*]If you also use Enhanced PlayerModel Selector, set [b]sv_playermodel_selector_force 0[/b]. Its force mode overrides every model change.
-[/list]
-
-[h2]Credits[/h2]
-The menu layout is inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=504945881]Enhanced PlayerModel Selector[/url] by LibertyForce. SkinShare is a separate implementation that adds cross-player skin sharing.
+[quote]No reconnect. No server collection. No admin. Made for playing with your friends: anyone can pick any skin they have and send it to everyone else.[/quote]
 
 [hr][/hr]
 
-[h2]Español[/h2]
-Escribe [b]!skin[/b] en el chat y elige cualquier skin de TUS addons con preview 3D. A los demás se les descarga y monta en plena partida, sin reconectar. Está pensado para jugar con amigos: cualquiera puede elegir cualquier skin y mandársela a los demás, y solo el host necesita el addon. Tu última skin se guarda en tu PC y se te pone sola cada vez que entras, aunque reinicies GMod o juegues otro día. Funciona en TTT y en cualquier modo, la skin se mantiene entre rondas y el menú está en español e inglés. La interfaz está inspirada en Enhanced PlayerModel Selector de LibertyForce.
+[h2]😤 The problem[/h2]
+You join your friend's game and want to use your favorite playermodel... but the host doesn't have it. Your friends see you as a giant red [b]ERROR[/b], or the selector doesn't even list your skins.
+
+[h2]✅ The fix[/h2]
+[list]
+[*][b]🌐 Built for peer-to-peer.[/b] Host from the main menu like always. [u]Only the host needs this addon[/u]; friends get it automatically when they join. Dedicated servers work too.
+[*][b]👤 YOUR skins, not just the host's.[/b] The menu finds playermodels in your own subscribed addons, even ones nobody else has.
+[*][b]📦 Auto-download for everyone.[/b] When you pick a skin, every other player downloads and mounts it mid-game. It's only applied once they have it, so nobody sees an ERROR.
+[*][b]🔪 Works in TTT and any gamemode.[/b] Your skin is forced over the gamemode's model and survives respawns and new rounds. Prop Hunt props are left alone.
+[*][b]💾 Persistent.[/b] Your last skin is saved on your PC and put back on whenever you join, even after restarting GMod or playing another day.
+[/list]
+
+[h2]✨ Features[/h2]
+[list]
+[*]🧍 Live 3D preview: drag to rotate, scroll to zoom
+[*]🔍 Searchable icon grid of every playermodel you have
+[*]🧩 Bodygroups and skins, 😉 face (flexes), 🎨 player and weapon color
+[*]⭐ Favorites: save and load complete setups
+[*]✋ Matching first-person hands when the addon ships them
+[*]🌍 English and Spanish: follows your GMod language, or use the EN/ES button
+[/list]
+
+[h2]⌨️ Commands[/h2]
+[table]
+[tr][th]Command[/th][th]What it does[/th][/tr]
+[tr][td][b]!skin[/b] / [b]skinshare[/b][/td][td]Open the menu[/td][/tr]
+[tr][td][b]skinshare_language[/b] auto / en / es[/td][td]Menu language[/td][/tr]
+[tr][td][b]skinshare_debug[/b][/td][td]List which of your addons the menu can see[/td][/tr]
+[/table]
+
+[h2]🚀 How to use[/h2]
+[olist]
+[*]The host subscribes and hosts a game (P2P or dedicated).
+[*]Friends join. Nothing to install.
+[*]Everyone types [b]!skin[/b], picks a model and hits [b]Use and share[/b].
+[*]That's it. 🎉
+[/olist]
+
+[h2]⚠️ Notes[/h2]
+[list]
+[*]Shared skins must be public Workshop items tagged "Model" (up to 300 MB), so nobody can force everyone to mount texture or sound replacement packs.
+[*]If you also use Enhanced PlayerModel Selector, set [b]sv_playermodel_selector_force 0[/b]. Its force mode overrides every model change.
+[/list]
+
+[h2]❤️ Credits[/h2]
+The menu layout is inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=504945881]Enhanced PlayerModel Selector[/url] by LibertyForce. SkinShare is a separate implementation built around sharing skins between players.
+
+[hr][/hr]
+
+[h1]🇪🇸 Español[/h1]
+[h3]Escribe [b]!skin[/b]. Elige CUALQUIER skin que tengas. Todos la ven al instante.[/h3]
+[list]
+[*][b]🌐 Hecho para P2P y para jugar con amigos.[/b] Solo el host necesita el addon y a los demás se les instala solo al entrar.
+[*][b]👤 Tus skins, no solo las del host.[/b] Cualquiera puede elegir sus propias skins y mandárselas a los demás.
+[*][b]📦 Descarga automática[/b] en plena partida, sin reconectar y sin modelos ERROR.
+[*][b]🔪 Funciona en TTT y en cualquier modo.[/b] La skin se mantiene entre rondas.
+[*][b]💾 Se guarda tu skin[/b] y se te pone sola cada vez que entras, aunque reinicies GMod.
+[*]Preview 3D, bodygroups, cara, colores, favoritos y menú en español e inglés.
+[/list]
+La interfaz está inspirada en Enhanced PlayerModel Selector de LibertyForce.

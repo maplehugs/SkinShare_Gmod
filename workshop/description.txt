@@ -3,6 +3,8 @@
 
 Type [b]!skin[/b] in chat. A menu opens with a live 3D preview of every playermodel from YOUR subscribed addons. Pick one, hit [b]Use and share[/b], and every other player downloads and mounts it mid-game.
 
+[b]Made to play with friends:[/b] anyone in the game can pick any skin they have and send it to everyone else.
+
 [h2]Why this one?[/h2]
 Normal selectors only list models the [i]server[/i] has, so your friends end up as ERRORs or can't use their own skins at all. SkinShare fixes that:
 [list]
@@ -18,7 +20,7 @@ Normal selectors only list models the [i]server[/i] has, so your friends end up 
 [*]Searchable icon grid of every playermodel you have
 [*]Bodygroups and skins, face (flexes), and player and weapon color
 [*]Favorites: save and load full setups
-[*]Remembers your last skin and puts it back on when you join
+[*][b]Persistent:[/b] your last skin is saved on your PC and reapplied automatically whenever you join, even after restarting GMod or coming back another day
 [*]Matching first-person hands when the addon ships them
 [*]English and Spanish: follows your GMod language, or use the EN/ES button
 [/list]
@@ -42,4 +44,4 @@ The menu layout is inspired by [url=https://steamcommunity.com/sharedfiles/filed
 [hr][/hr]
 
 [h2]Español[/h2]
-Escribe [b]!skin[/b] en el chat y elige cualquier skin de TUS addons con preview 3D. A los demás se les descarga y monta en plena partida, sin reconectar. Está hecho para partidas P2P con amigos: solo el host necesita el addon. Funciona en TTT y en cualquier modo, la skin se mantiene entre rondas y el menú está en español e inglés. La interfaz está inspirada en Enhanced PlayerModel Selector de LibertyForce.
+Escribe [b]!skin[/b] en el chat y elige cualquier skin de TUS addons con preview 3D. A los demás se les descarga y monta en plena partida, sin reconectar. Está pensado para jugar con amigos: cualquiera puede elegir cualquier skin y mandársela a los demás, y solo el host necesita el addon. Tu última skin se guarda en tu PC y se te pone sola cada vez que entras, aunque reinicies GMod o juegues otro día. Funciona en TTT y en cualquier modo, la skin se mantiene entre rondas y el menú está en español e inglés. La interfaz está inspirada en Enhanced PlayerModel Selector de LibertyForce.

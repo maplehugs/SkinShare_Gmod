@@ -1,0 +1,30 @@
+[h1]SkinShare - Better Skin Selector[/h1]
+Type [b]!skin[/b] in chat to pick a playermodel with a live 3D preview. Your friends download and mount it [b]mid-game[/b], with no reconnect and no need to add it to the server's collection.
+
+[h2]Features[/h2]
+[list]
+[*][b]Use YOUR skins on anyone's server[/b]: the menu shows playermodels from your own subscribed addons, even when the host doesn't have them. Everyone else downloads them automatically.
+[*]Works on [b]peer-to-peer / listen servers[/b] and dedicated servers. Only the host needs this addon; clients get it on join.
+[*]Works in any gamemode ([b]TTT[/b], Sandbox, ...). Your skin is forced over the gamemode's model and survives respawns and new rounds. Non-playermodels (Prop Hunt props) are left alone.
+[*]Tabs for bodygroups and skin, face (flexes), player and weapon color, and favorites.
+[*]Drag to rotate, scroll to zoom.
+[*]Remembers your last skin and reapplies it when you join.
+[*]Matching viewmodel hands when the addon ships them.
+[/list]
+
+[h2]Commands[/h2]
+[list]
+[*][b]!skin[/b] or [b]skinshare[/b]: open the menu
+[*][b]skinshare_debug[/b]: list which of your addons the menu can see
+[/list]
+
+[h2]Notes[/h2]
+[list]
+[*]Only public Workshop items tagged "Model" (up to 300 MB) are shared, so nobody can force everyone to mount texture or sound replacement packs.
+[*]Not compatible with Enhanced PlayerModel Selector's force mode. Either set [b]sv_playermodel_selector_force 0[/b] or disable that addon.
+[/list]
+
+[hr][/hr]
+
+[h2]Español[/h2]
+Escribe [b]!skin[/b] en el chat para elegir tu skin con preview 3D. A tus amigos se les descarga y monta en plena partida, sin reconectar. Ves las skins de tus propios addons aunque el host no las tenga. Funciona en P2P y en cualquier modo (TTT incluido), y la skin se mantiene entre rondas. Solo el host necesita el addon.

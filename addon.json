@@ -1,6 +1,6 @@
 {
-	"title": "SkinShare",
+	"title": "SkinShare - Better Skin Selector (!skin)",
 	"type": "tool",
-	"tags": ["fun"],
-	"ignore": ["*.md", ".git*"]
+	"tags": ["fun", "roleplay"],
+	"ignore": ["*.md", ".git*", "workshop/*", "lua/autorun/server/loadingurl.lua"]
 }

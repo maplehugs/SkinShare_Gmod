@@ -54,4 +54,5 @@ Agrega, no reemplaza: para quitar las que hay, `--remove <cantidad>` antes de su
 Las capturas del showcase (título, zoom al menú y recuadros) se generan desde capturas crudas de 1920x1080 con el menú centrado:
 ```sh
 python3 workshop/showcase.py <carpeta con s1.jpg...s8.jpg> workshop workshop/showcase.json
+python3 workshop/before_after.py <scratchpad con ss2/s1.jpg y s6.jpg> <imagen con el modelo ERROR>  # antes/después, va primera
 ```

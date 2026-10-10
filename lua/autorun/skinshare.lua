@@ -1,5 +1,7 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
+local VERSION = "0.7.0"
+print("SkinShare v" .. VERSION)
 
 local function mount(wsid, cb)
 	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
@@ -17,9 +19,12 @@ local function nums(str)
 	return t
 end
 
+local MDL = "^models/[%w_%-%./]+%.mdl$"
+
 if SERVER then
 	util.AddNetworkString("skinshare")
-	local skins = {} -- [steamid64] = {wsid, mdl, skin, bg, flex, col, wcol}
+	util.AddNetworkString("skinshare_ack")
+	local skins = {} -- [steamid64] = {wsid, mdl, arms, skin, bg, flex, col, wcol, waiting, ready}
 
 	local function send(ply, s, to)
 		net.Start("skinshare")
@@ -42,13 +47,18 @@ if SERVER then
 		for i, v in pairs(nums(s.flex)) do ply:SetFlexWeight(i, math.Clamp(v, -1, 1)) end
 	end
 
+	local function active(ply)
+		local s = skins[ply:SteamID64()]
+		return s and s.ready and file.Exists(s.mdl, "GAME") and s
+	end
+
 	-- forzar: cualquier SetModel del gamemode (TTT, etc.) se cambia por la skin elegida
 	local meta = FindMetaTable("Player")
 	-- SetModel vive en Entity, no en Player
 	meta.SkinShareRawSetModel = meta.SkinShareRawSetModel or FindMetaTable("Entity").SetModel
 	function meta:SetModel(m)
-		local s = skins[self:SteamID64()]
-		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m)) and file.Exists(s.mdl, "GAME")) then
+		local s = active(self)
+		if not (s and isstring(m) and (m == s.mdl or isPlayerModel(m))) then
 			return self:SkinShareRawSetModel(m)
 		end
 		self:SkinShareRawSetModel(s.mdl)
@@ -56,17 +66,34 @@ if SERVER then
 	end
 
 	local function apply(ply)
-		local s = skins[ply:SteamID64()]
-		if not (s and file.Exists(s.mdl, "GAME")) then return end
+		local s = active(ply)
+		if not s then return end
 		ply:SetModel(s.mdl)
 		ply:SetPlayerColor(s.col)
 		ply:SetWeaponColor(s.wcol)
-		if ply.SetupHands then ply:SetupHands() end -- manos del viewmodel acordes a la skin
+		if ply.SetupHands then ply:SetupHands() end
+		-- las manos que registra el addon del cliente no existen aquí (su Lua no corre): se usan las *_arms.mdl que mandó
+		local hands = ply:GetHands()
+		if s.arms ~= "" and IsValid(hands) and file.Exists(s.arms, "GAME") then hands:SetModel(s.arms) end
 		return true
 	end
 
 	local function color(v)
 		return Vector(math.Clamp(v.x, 0, 1), math.Clamp(v.y, 0, 1), math.Clamp(v.z, 0, 1))
+	end
+
+	-- cada cliente avisa cuando ya montó la skin; si el server la pone antes, ese cliente la cachea como ERROR
+	net.Receive("skinshare_ack", function(_, from)
+		local owner = net.ReadEntity()
+		local s = IsValid(owner) and skins[owner:SteamID64()]
+		if s and s.waiting then s.waiting[from] = nil end
+	end)
+
+	local function allMounted(s)
+		for p in pairs(s.waiting) do
+			if IsValid(p) and not p:IsBot() then return false end
+		end
+		return true
 	end
 
 	net.Receive("skinshare", function(_, ply)
@@ -80,30 +107,45 @@ if SERVER then
 			return
 		end
 
-		if (ply.skinshareNext or 0) > CurTime() then return end
-		ply.skinshareNext = CurTime() + 3
+		if (ply.skinshareNext or 0) > CurTime() then
+			ply:ChatPrint("SkinShare: espera un segundo y vuelve a intentarlo.")
+			return
+		end
+		ply.skinshareNext = CurTime() + 1
 
-		if wsid == "none" then -- volver a la skin del gamemode
+		if wsid == "none" then -- volver a la skin y colores del gamemode
 			skins[ply:SteamID64()] = nil
 			if ply:Alive() and GAMEMODE.PlayerSetModel then GAMEMODE:PlayerSetModel(ply) end
+			ply:SetPlayerColor(Vector(ply:GetInfo("cl_playercolor")))
+			ply:SetWeaponColor(Vector(ply:GetInfo("cl_weaponcolor")))
+			if ply.SetupHands then ply:SetupHands() end
 			return
 		end
 
-		local mdl, skin, bg, flex = net.ReadString(), net.ReadUInt(8), net.ReadString(), net.ReadString()
+		local mdl, arms, skin, bg, flex = net.ReadString(), net.ReadString(), net.ReadUInt(8), net.ReadString(), net.ReadString()
 		local col, wcol = color(net.ReadVector()), color(net.ReadVector())
-		if not wsid:match("^%d+$") or not mdl:match("^models/[%w_%-%./]+%.mdl$") or mdl:find("..", 1, true) then return end
+		if not wsid:match("^%d+$") or not mdl:match(MDL) or mdl:find("..", 1, true) then return end
+		if arms ~= "" and (not arms:match(MDL) or arms:find("..", 1, true)) then arms = "" end
 		if #bg > 255 or not bg:match("^[%d ]*$") then return end
-		if #flex > 2048 or not flex:match("^[%d%.%- ]*$") then return end
+		if #flex > 8192 or not flex:match("^[%d%.%- ]*$") then return end
 
-		local s = { wsid = wsid, mdl = mdl, skin = skin, bg = bg, flex = flex, col = col, wcol = wcol }
+		local s = { wsid = wsid, mdl = mdl, arms = arms, skin = skin, bg = bg, flex = flex, col = col, wcol = wcol, waiting = {} }
+		for _, p in ipairs(player.GetAll()) do s.waiting[p] = true end
 		skins[ply:SteamID64()] = s
 		send(ply, s)
+		-- los que se unan después la descargan mientras conectan
+		if wsid ~= "0" then resource.AddWorkshop(wsid) end
 		-- listen server: el cliente del host monta el GMA y comparte filesystem con el server
 		if game.IsDedicated() and steamworks.DownloadUGC then mount(wsid, function() end) end
 
+		-- se aplica cuando todos la montaron, o a los 60 s aunque alguien siga descargando
 		local name = "skinshare_" .. ply:SteamID64()
 		timer.Create(name, 1, 60, function()
-			if not IsValid(ply) or apply(ply) then timer.Remove(name) end
+			if not IsValid(ply) or skins[ply:SteamID64()] ~= s then return timer.Remove(name) end
+			if allMounted(s) or timer.RepsLeft(name) == 0 then
+				s.ready = true
+				if apply(ply) then timer.Remove(name) end
+			end
 		end)
 	end)
 
@@ -116,11 +158,11 @@ if SERVER then
 	return
 end
 
--- data/skinshare.json: { last = config, favs = { [nombre] = config } }
+-- data/skinshare.json: { last = config, favs = { {name = ..., cfg = config}, ... } }
 local DATA = "skinshare.json"
 local function loadData()
 	local d = util.JSONToTable(file.Read(DATA, "DATA") or "") or {}
-	d.favs = d.favs or {}
+	if not istable(d.favs) or d.favs[1] == nil then d.favs = {} end -- formato viejo (por nombre) se descarta
 	return d
 end
 local function saveData(d) file.Write(DATA, util.TableToJSON(d, true)) end
@@ -128,8 +170,8 @@ local function saveData(d) file.Write(DATA, util.TableToJSON(d, true)) end
 local function choose(c)
 	net.Start("skinshare") net.WriteString(c.wsid)
 	if c.mdl then
-		net.WriteString(c.mdl) net.WriteUInt(c.skin, 8) net.WriteString(c.bg) net.WriteString(c.flex)
-		net.WriteVector(c.col) net.WriteVector(c.wcol)
+		net.WriteString(c.mdl) net.WriteString(c.arms or "") net.WriteUInt(c.skin, 8)
+		net.WriteString(c.bg) net.WriteString(c.flex) net.WriteVector(c.col) net.WriteVector(c.wcol)
 	end
 	net.SendToServer()
 end
@@ -137,7 +179,7 @@ end
 net.Receive("skinshare", function()
 	local ply, wsid, mdl = net.ReadEntity(), net.ReadString(), net.ReadString()
 	mount(wsid, function()
-		-- ponytail: refresco local del modelo; si el jugador no estaba visible se ve al respawnear
+		net.Start("skinshare_ack") net.WriteEntity(ply) net.SendToServer()
 		if IsValid(ply) then ply:SetModel(mdl) end
 	end)
 end)
@@ -156,8 +198,13 @@ local function addonFor(mdl)
 	return "0"
 end
 
--- En server ajeno el cliente no corre el Lua de SUS addons, así que sus playermodels no se registran
--- en player_manager. Se buscan los .mdl directamente en sus addons montados.
+-- brazos del viewmodel: *_arms.mdl / c_arms*.mdl en la misma carpeta del modelo
+local function armsFor(mdl)
+	local dir = string.GetPathFromFilename(mdl)
+	local found = file.Find(dir .. "*arms*.mdl", "GAME")
+	return found and found[1] and (dir .. found[1]):lower() or ""
+end
+
 -- Un playermodel incluye las animaciones de jugador (models/m_anm.mdl, f_anm o z_anm); brazos y props no.
 local isPM = {} -- caché por sesión
 local function isPlayerModel(p)
@@ -166,11 +213,13 @@ local function isPlayerModel(p)
 		-- ponytail: lee el .mdl entero; la primera vez tarda si hay packs con miles de props
 		local data = fh and fh:Size() > 0 and fh:Read(fh:Size()) or ""
 		if fh then fh:Close() end
-		isPM[p] = data:find("models/[mfz]_anm%.mdl") ~= nil
+		isPM[p] = data:lower():find("models/[mfz]_anm%.mdl") ~= nil
 	end
 	return isPM[p]
 end
 
+-- En server ajeno el cliente no corre el Lua de SUS addons, así que sus playermodels no se registran
+-- en player_manager. Se buscan los .mdl directamente en sus addons montados.
 local function findModels(dir, path, out)
 	local files, dirs = file.Find(dir .. "*", path)
 	for _, f in ipairs(files or {}) do
@@ -184,12 +233,21 @@ end
 
 local function allModels()
 	local list = {} -- [mdl] = nombre
+	-- sin filtrar por a.models: sin conexión a Steam algunos addons salen con models = 0
 	for _, a in ipairs(engine.GetAddons()) do
-		if a.mounted and (a.models or 0) > 0 then findModels("models/", a.title, list) end
+		if a.mounted then findModels("models/", a.title, list) end
 	end
 	for name, mdl in pairs(player_manager.AllValidModels()) do list[mdl:lower()] = name end
 	return list
 end
+
+concommand.Add("skinshare_debug", function()
+	print("SkinShare v" .. VERSION)
+	for _, a in ipairs(engine.GetAddons()) do
+		local f, d = file.Find("models/*", a.title)
+		if #f + #d > 0 then print(a.mounted, a.wsid, a.models, #f + #d, a.title) end
+	end
+end)
 
 local function slider(parent, label, min, max, decimals, val, onChange)
 	local s = parent:Add("DNumSlider")
@@ -210,7 +268,7 @@ concommand.Add("skinshare", function()
 	local data = loadData()
 	local f = vgui.Create("DFrame")
 	f:SetSize(math.min(ScrW() - 16, 960), math.min(ScrH() - 16, 700)) f:Center()
-	f:SetTitle("SkinShare") f:MakePopup()
+	f:SetTitle("SkinShare v" .. VERSION) f:MakePopup()
 
 	local right = f:Add("DPanel")
 	right:Dock(RIGHT) right:SetWide(f:GetWide() * 0.45)
@@ -226,7 +284,7 @@ concommand.Add("skinshare", function()
 	local scroll = models:Add("DScrollPanel")
 	scroll:Dock(FILL)
 	local grid = scroll:Add("DIconLayout")
-	grid:Dock(FILL) grid:SetSpaceX(4) grid:SetSpaceY(4)
+	grid:Dock(TOP) grid:SetSpaceX(4) grid:SetSpaceY(4)
 	sheet:AddSheet("Modelos", models, "icon16/user.png")
 
 	-- Favoritos
@@ -275,9 +333,11 @@ concommand.Add("skinshare", function()
 
 	local sel = {}
 	local function pick(mdl, skin, bg, flex)
-		sel = { mdl = mdl, skin = skin or 0, bg = bg or {}, flex = flex or {} }
+		mdl = mdl:lower()
 		preview:SetModel(mdl)
 		local ent = preview.Entity
+		if not IsValid(ent) then sel = {} return end
+		sel = { mdl = mdl, skin = skin or 0, bg = bg or {}, flex = flex or {} }
 		ent.GetPlayerColor = function() return pcol:GetVector() end
 		local seq = ent:LookupSequence("idle_all_01")
 		if seq > 0 then ent:ResetSequence(seq) end
@@ -313,8 +373,8 @@ concommand.Add("skinshare", function()
 		local bg, fl = {}, {}
 		for i = 0, ent:GetNumBodyGroups() - 1 do bg[#bg + 1] = sel.bg[i] or 0 end
 		for i = 0, ent:GetFlexNum() - 1 do fl[#fl + 1] = string.format("%.2f", sel.flex[i] or 0) end
-		return { wsid = addonFor(sel.mdl), mdl = sel.mdl, skin = sel.skin, bg = table.concat(bg, " "),
-			flex = table.concat(fl, " "), col = pcol:GetVector(), wcol = wcol:GetVector() }
+		return { wsid = addonFor(sel.mdl), mdl = sel.mdl, arms = armsFor(sel.mdl), skin = sel.skin,
+			bg = table.concat(bg, " "), flex = table.concat(fl, " "), col = pcol:GetVector(), wcol = wcol:GetVector() }
 	end
 
 	local function load(c)
@@ -339,26 +399,27 @@ concommand.Add("skinshare", function()
 
 	local function refreshFavs()
 		favList:Clear()
-		for name in SortedPairs(data.favs) do favList:AddLine(name) end
+		for i, fav in ipairs(data.favs) do favList:AddLine(fav.name).fav = i end
 	end
 	refreshFavs()
 	local function selectedFav()
-		local line = favList:GetSelectedLine()
-		return line and favList:GetLine(line):GetValue(1)
+		local _, line = favList:GetSelectedLine()
+		return line and line.fav
 	end
-	favList.DoDoubleClick = function(_, _, line) load(data.favs[line:GetValue(1)]) end
+	favList.DoDoubleClick = function(_, _, line) load(data.favs[line.fav].cfg) end
 	button(favBar, "Borrar", RIGHT, function()
-		local name = selectedFav()
-		if name then data.favs[name] = nil saveData(data) refreshFavs() end
+		local i = selectedFav()
+		if i then table.remove(data.favs, i) saveData(data) refreshFavs() end
 	end)
 	button(favBar, "Cargar", RIGHT, function()
-		local name = selectedFav()
-		if name then load(data.favs[name]) end
+		local i = selectedFav()
+		if i then load(data.favs[i].cfg) end
 	end)
 	button(favBar, "Guardar actual", FILL, function()
+		if not sel.mdl then return end
 		Derma_StringRequest("Favorito", "Nombre:", string.StripExtension(string.GetFileFromFilename(sel.mdl)), function(name)
 			if name == "" then return end
-			data.favs[name] = current() saveData(data) refreshFavs()
+			table.insert(data.favs, { name = name, cfg = current() }) saveData(data) refreshFavs()
 		end)
 	end)
 
@@ -367,8 +428,9 @@ concommand.Add("skinshare", function()
 		choose({ wsid = "none" })
 		f:Close()
 	end)
-	button(bar, "Reiniciar", LEFT, function() pick(sel.mdl) end)
+	button(bar, "Reiniciar", LEFT, function() if sel.mdl then pick(sel.mdl) end end)
 	button(bar, "Usar y compartir", FILL, function()
+		if not sel.mdl then return end
 		data.last = current() saveData(data)
 		choose(data.last)
 		f:Close()

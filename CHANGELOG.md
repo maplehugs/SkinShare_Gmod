@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.0 — 2026-10-09
+- La skin se aplica cuando todos los clientes la montaron (ack) o a los 60 s; evita que se queden con ERROR.
+- `resource.AddWorkshop` para quien se una después.
+- Manos: se mandan las `*_arms.mdl` de la carpeta del modelo (el Lua del cliente que las registra no corre en el server).
+- Quitar skin restaura los colores del jugador.
+- Ya no se descartan addons con `models = 0` (pasa cuando Steam no responde).
+- Detección de `_anm` sin distinguir mayúsculas; las rutas se pasan a minúsculas.
+- Límite de flexes subido a 8192; aviso en el chat si se manda muy rápido (cooldown 1 s).
+- Favoritos guardados como lista (los nombres numéricos rompían el JSON). Los favoritos viejos se descartan.
+- Fixes de UI: cuadrícula con scroll, preview inválido ya no truena.
+- `skinshare_debug` en consola y versión en el título/consola.
+
 ## v0.6.1 — 2026-10-09
 - Fix: los playermodels de los addons de los clientes se detectan por las animaciones de jugador que incluye el .mdl (`m_anm`/`f_anm`/`z_anm`), no por la ruta. Ahora aparecen skins como Mirage o Realistic Fish Head.
 

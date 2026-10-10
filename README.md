@@ -31,3 +31,12 @@ En un listen server los clientes descargan los addons que tiene activos el host,
 
 ## Versiones
 Se usan tags de git con semver (`v0.1.0`). Los cambios están en `CHANGELOG.md`.
+
+## Workshop
+https://steamcommunity.com/sharedfiles/filedetails/?id=3816842120
+
+Para publicar una actualización, desde `GarrysMod/bin` y con Steam abierto:
+```sh
+LD_LIBRARY_PATH=. ./gmad_linux create -folder ~/Documents/gmod-skinshare -out /tmp/skinshare.gma
+LD_LIBRARY_PATH=. ./gmpublish_linux update -id 3816842120 -addon /tmp/skinshare.gma -changes "v0.x.0: ..."
+```

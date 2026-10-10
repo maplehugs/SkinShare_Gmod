@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.9.0"
+local VERSION = "0.9.1"
 print("SkinShare v" .. VERSION)
 
 local MAX_SIZE = 300 * 1024 * 1024
@@ -437,12 +437,17 @@ concommand.Add("skinshare", function()
 		pick(c.mdl, c.skin, nums(c.bg), nums(c.flex))
 	end
 
+	-- no util.IsValidModel: en cliente rechaza todo lo que el server no precacheó (las skins de tus addons)
+	local function showable(mdl)
+		return file.Exists(mdl, "GAME") and not (mdl:find("_anm", 1, true) or mdl:find("_animations", 1, true)
+			or mdl:find("_gestures", 1, true) or mdl:find("_postures", 1, true))
+	end
 	local list = allModels()
 	local function populate()
 		grid:Clear()
 		local q = search:GetValue():lower()
 		for mdl, name in SortedPairsByValue(list) do
-			if (q == "" or name:lower():find(q, 1, true)) and util.IsValidModel(mdl) then
+			if (q == "" or name:lower():find(q, 1, true)) and showable(mdl) then
 				local icon = grid:Add("SpawnIcon")
 				icon:SetSize(64, 64) icon:SetModel(mdl) icon:SetTooltip(name)
 				icon.DoClick = function() pick(mdl) end

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.9.1 — 2026-10-09
+- Fix: volvieron las skins que faltaban. `util.IsValidModel` en el cliente rechazaba los modelos que el server no había precacheado. Ahora se filtran solo los que no existen y los de animaciones.
+
 ## v0.9.0 — 2026-10-09
 - Interfaz en inglés y español: sigue el idioma de GMod, con botón EN/ES y el convar `skinshare_language`.
 - Se ocultan los modelos inválidos (ERROR, animaciones) de la cuadrícula.

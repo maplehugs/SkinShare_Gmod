@@ -1,6 +1,6 @@
 -- SkinShare: un jugador elige uno de SUS addons de modelos y todos lo descargan y montan en partida.
 AddCSLuaFile()
-local VERSION = "0.13.0"
+local VERSION = "0.14.0"
 print("SkinShare v" .. VERSION)
 
 -- config del server (replicada: el cliente la lee para el menú y para filtrar lo que monta)
@@ -28,30 +28,103 @@ local function blocked(ply)
 	if ply:GetNWBool("skinshare_banned") then return "blockedBan" end
 end
 
+-- archivos de un .gma (cabecera GMAD) sin montarlo
+local function gmaFiles(f)
+	f:Seek(0)
+	if f:Read(4) ~= "GMAD" then return end
+	local function str()
+		local t = {}
+		while true do
+			local b = f:ReadByte()
+			if not b or b == 0 then return table.concat(t) end
+			t[#t + 1] = string.char(b)
+		end
+	end
+	local ver = f:ReadByte()
+	f:Skip(16) -- steamid + fecha
+	if ver > 1 then while str() ~= "" do end end -- contenido requerido (sin uso)
+	str() str() str() f:Skip(4) -- nombre, descripción, autor, versión
+	local out = {}
+	while true do
+		local n = f:ReadULong()
+		if not n or n == 0 or f:EndOfFile() then return out end
+		out[#out + 1] = str():lower()
+		f:Skip(12) -- tamaño + crc
+	end
+end
+
+-- montados en esta sesión: volver a montarlos daría falso "reemplaza archivos"
+SkinShareMounted = SkinShareMounted or {}
+
+-- cb(ok). Cualquiera puede pedir una skin, así que no se monta un addon que pise archivos que ya
+-- existen en el juego (packs que reemplazan texturas, sonidos o modelos base). Los addons a los que
+-- estás suscrito ya están montados por el juego y no se revisan.
+-- últimos eventos, para el reporte de errores del menú (cliente) o la consola del server
+SkinShareLog = SkinShareLog or {}
+local function slog(msg)
+	print("[SkinShare] " .. msg)
+	table.insert(SkinShareLog, os.date("%H:%M:%S ") .. msg)
+	if #SkinShareLog > 80 then table.remove(SkinShareLog, 1) end
+end
+
 local function download(wsid, cb)
-	steamworks.DownloadUGC(wsid, function(path)
-		if not path then return end
-		local ok, files = game.MountGMA(path)
-		if ok then cb(files) end
+	if SkinShareMounted[wsid] then return cb(true) end
+	steamworks.DownloadUGC(wsid, function(path, f)
+		if not path then slog("download failed: " .. wsid) return cb(false) end
+		if not (steamworks.IsSubscribed and steamworks.IsSubscribed(wsid)) then
+			local own = not f
+			f = f or file.Open(path, "rb", "GAME")
+			local list = f and gmaFiles(f)
+			if own and f then f:Close() end
+			if not list then slog("can't read " .. path) return cb(false) end
+			for _, p in ipairs(list) do
+				if not p:find("^lua/") and file.Exists(p, "GAME") then
+					slog("not mounting " .. wsid .. ", it would replace " .. p)
+					return cb(false)
+				end
+			end
+		end
+		local ok = game.MountGMA(path)
+		slog((ok and "mounted " or "mount failed: ") .. wsid)
+		SkinShareMounted[wsid] = ok or nil
+		cb(ok)
 	end)
 end
 
 -- nil si se puede compartir; si no, el motivo (clave de STRINGS)
 local function rejected(info, wsid)
 	if listed(CV.addons, wsid) then return "whyBlocked" end
-	if not info then return "whyMissing" end
-	if not tostring(info.tags or ""):lower():find("model", 1, true) then return "whyTag" end
+	if not info or info.error then return "whyMissing" end
 	if (tonumber(info.size) or 0) > CV.maxsize:GetInt() * 1048576 then return "whySize" end
 end
 
 local function mount(wsid, cb)
-	if wsid == "0" then return cb({}) end -- modelo del juego base, todos lo tienen
-	if listed(CV.addons, wsid) then return end
-	if not steamworks.FileInfo then return download(wsid, cb) end
-	-- cualquiera puede pedir una skin: solo se montan items con tag Model y de tamaño razonable,
-	-- para que nadie obligue a todos a montar un pack que reemplace texturas o sonidos
+	if wsid == "0" then return cb() end -- modelo del juego base, todos lo tienen
+	if listed(CV.addons, wsid) then return slog("blocked by server: " .. wsid) end
+	-- suscrito: el juego ya lo montó (y sus Required items), sin límite de tamaño ni descargas
+	if steamworks.IsSubscribed and steamworks.IsSubscribed(wsid) then return cb() end
+	local function main() download(wsid, function(ok) if ok then cb() end end) end
+	if not steamworks.FileInfo then return main() end
 	steamworks.FileInfo(wsid, function(info)
-		if not rejected(info, wsid) then download(wsid, cb) end
+		local why = rejected(info, wsid)
+		if why then return slog("not mounting " .. wsid .. ": " .. why .. " (" .. math.Round((tonumber(info and info.size) or 0) / 1048576) .. " MB)") end
+		-- "Required items" del addon (p. ej. un Texture Pack aparte): se montan antes que el modelo,
+		-- con la lista de bloqueados y compartiendo el tamaño máximo. Solo un nivel.
+		local kids = info.children or {}
+		local function step(i, budget)
+			local c = kids[i] and tostring(kids[i])
+			if not c then return main() end
+			if listed(CV.addons, c) then return step(i + 1, budget) end
+			steamworks.FileInfo(c, function(ci)
+				local size = ci and tonumber(ci.size) or 0
+				if not ci or ci.error or size > budget then
+					slog("skipping required item " .. c .. " of " .. wsid .. " (" .. math.Round(size / 1048576) .. " MB)")
+					return step(i + 1, budget)
+				end
+				download(c, function() step(i + 1, budget - size) end)
+			end)
+		end
+		step(1, CV.maxsize:GetInt() * 1048576 - (tonumber(info.size) or 0))
 	end)
 end
 
@@ -62,11 +135,18 @@ local function nums(str)
 	return t
 end
 
-local MDL = "^models/[%w_%-%./]+%.mdl$"
+local MDL = "^models/[%w_%-%./ ]+%.mdl$" -- con espacios: "models/kuge/private military contractor/..."
 
 if SERVER then
 	util.AddNetworkString("skinshare")
 	util.AddNetworkString("skinshare_ack")
+	util.AddNetworkString("skinshare_log")
+	-- al log del server y al del jugador (sale en su reporte de errores)
+	local function tell(ply, msg)
+		slog(msg)
+		if not IsValid(ply) then return end
+		net.Start("skinshare_log") net.WriteString(msg) net.Send(ply)
+	end
 	-- global para que sobreviva si el Lua se recarga en caliente (si no, todos vuelven al modelo default)
 	SkinShareSkins = SkinShareSkins or {}
 	local skins = SkinShareSkins -- [steamid64] = {wsid, mdl, arms, skin, bg, flex, col, wcol, waiting, ready}
@@ -197,7 +277,8 @@ if SERVER then
 		end
 
 		if wsid == "none" then return strip(ply) end -- quitarse la skin siempre se puede
-		if blocked(ply) or listed(CV.addons, wsid) then return end
+		local why = blocked(ply) or listed(CV.addons, wsid) and "whyBlocked"
+		if why then return tell(ply, "server refused " .. wsid .. ": " .. why) end
 
 		if (ply.skinshareNext or 0) > CurTime() then
 			ply:ChatPrint("SkinShare: too fast, wait a moment and try again.")
@@ -207,7 +288,7 @@ if SERVER then
 
 		local mdl, arms, skin, bg, flex = net.ReadString(), net.ReadString(), net.ReadUInt(8), net.ReadString(), net.ReadString()
 		local col, wcol = color(net.ReadVector()), color(net.ReadVector())
-		if not wsid:match("^%d+$") or not mdl:match(MDL) or mdl:find("..", 1, true) then return end
+		if not wsid:match("^%d+$") or not mdl:match(MDL) or mdl:find("..", 1, true) then return tell(ply, "server refused bad model path: " .. mdl) end
 		if arms ~= "" and (not arms:match(MDL) or arms:find("..", 1, true)) then arms = "" end
 		if #bg > 255 or not bg:match("^[%d ]*$") then return end
 		if #flex > 8192 or not flex:match("^[%d%.%- ]*$") then return end
@@ -228,8 +309,14 @@ if SERVER then
 			if not IsValid(ply) or skins[ply:SteamID64()] ~= s then return timer.Remove(name) end
 			s.tries = (s.tries or 0) + 1
 			if allMounted(s) or s.tries >= 60 then
+				if not s.ready then
+					local left = {}
+					for p in pairs(s.waiting) do if IsValid(p) and not p:IsBot() then left[#left + 1] = p:UserID() end end
+					tell(ply, "server applying " .. s.mdl .. (#left > 0 and " after 60 s, not mounted by userid " .. table.concat(left, ",") or ""))
+				end
 				s.ready = true
-				if apply(ply) then timer.Remove(name) end
+				if apply(ply) then return timer.Remove(name) end
+				if s.tries >= 60 then tell(ply, "server can't find " .. s.mdl .. ", nobody gets this skin") end
 			end
 		end)
 	end)
@@ -315,13 +402,21 @@ local function choose(c)
 		net.WriteString(c.bg) net.WriteString(c.flex) net.WriteVector(c.col) net.WriteVector(c.wcol)
 	end
 	net.SendToServer()
+	slog("chose " .. c.wsid .. (c.mdl and " " .. c.mdl or ""))
 end
 
 local blockedMdl = {} -- [wsid] = mdl de las skins que bloqueaste en esta sesión, para su ícono
+net.Receive("skinshare_log", function()
+	local msg = net.ReadString()
+	slog(msg)
+	if msg:find("^server refused") or msg:find("^server can't") then chat.AddText(Color(255, 90, 90), "[SkinShare] ", color_white, msg) end
+end)
+
 net.Receive("skinshare", function()
 	local ply, wsid, mdl = net.ReadEntity(), net.ReadString(), net.ReadString()
 	if wsid == "none" then return end
 	mount(wsid, function()
+		slog("ready " .. wsid .. " " .. mdl .. " for " .. (IsValid(ply) and "userid " .. ply:UserID() or "?"))
 		net.Start("skinshare_ack") net.WriteEntity(ply) net.WriteString(mdl) net.SendToServer()
 		if IsValid(ply) then ply:SetModel(mdl) end
 	end)
@@ -425,10 +520,12 @@ local STRINGS = {
 		remove = "Remove skin", reset = "Reset", apply = "Use and share",
 		applied = "Skin shared!", removed = "Skin removed",
 		cantShare = "Other players can't download this skin: ", whyMissing = "the addon is private, hidden or doesn't exist.",
-		whyTag = "the addon isn't tagged \"Model\" on the Workshop.", whySize = "the addon is bigger than %d MB.",
+		whySize = "the addon is bigger than %d MB.",
 		whyBlocked = "the server blocked this addon.", blockedOff = "SkinShare is disabled on this server or gamemode.",
 		blockedAdmin = "Only admins can use SkinShare on this server.", blockedBan = "An admin turned off skins for you on this server.",
 		copyPath = "Copy model path", rescan = "Rescan models", random = "Random model", noFavsRandom = "You have no favorites yet.",
+		report = "Having problems? Copy an error report and open the Bug reports page",
+		reportDone = "Error report copied! Paste it (Ctrl+V) in Bug reports on the Workshop page.",
 		admin = "Admin", aPlayers = "Players", aBlocked = "Blocked skins", aServer = "Server",
 		aStrip = "Remove their skin", aBlockSkin = "Block this skin for everyone", aBan = "Don't let them use skins", aUnban = "Let them use skins again",
 		aUnblock = "Unblock", aNoSkin = "no skin", aBanned = "can't use skins",
@@ -446,10 +543,12 @@ local STRINGS = {
 		remove = "Quitar skin", reset = "Reiniciar", apply = "Usar y compartir",
 		applied = "¡Skin compartida!", removed = "Skin quitada",
 		cantShare = "Los demás no pueden descargar esta skin: ", whyMissing = "el addon es privado, está oculto o no existe.",
-		whyTag = "el addon no tiene el tag \"Model\" en el Workshop.", whySize = "el addon pesa más de %d MB.",
+		whySize = "el addon pesa más de %d MB.",
 		whyBlocked = "el server bloqueó este addon.", blockedOff = "SkinShare está desactivado en este server o modo de juego.",
 		blockedAdmin = "En este server solo los admins pueden usar SkinShare.", blockedBan = "Un admin te quitó el permiso de usar skins en este server.",
 		copyPath = "Copiar ruta del modelo", rescan = "Reescanear modelos", random = "Modelo aleatorio", noFavsRandom = "Todavía no tienes favoritos.",
+		report = "¿Tienes errores? Copia un reporte y abre la página de Reportar errores",
+		reportDone = "¡Reporte copiado! Pégalo (Ctrl+V) en Reportar errores, en la página del Workshop.",
 		admin = "Admin", aPlayers = "Jugadores", aBlocked = "Skins bloqueadas", aServer = "Server",
 		aStrip = "Quitarle la skin", aBlockSkin = "Bloquear esta skin para todos", aBan = "No dejar que use skins", aUnban = "Dejar que vuelva a usar skins",
 		aUnblock = "Desbloquear", aNoSkin = "sin skin", aBanned = "no puede usar skins",
@@ -483,6 +582,31 @@ local function share(c)
 	return true
 end
 
+-- reporte para pegar en Bug reports del Workshop: versión, settings, skins de todos y el log
+local BUGS = "https://steamcommunity.com/workshop/filedetails/discussion/3816842120/587314210897263174/"
+local function report()
+	local me, last = LocalPlayer(), loadData().last or {}
+	local out = {
+		"SkinShare v" .. VERSION .. " | GMod " .. VERSIONSTR .. " " .. BRANCH .. " " .. jit.arch
+			.. " | " .. (system.IsLinux() and "Linux" or system.IsOSX() and "macOS" or "Windows"),
+		"gamemode " .. engine.ActiveGamemode() .. " | map " .. game.GetMap() .. " | " .. (game.SinglePlayer() and "singleplayer" or "multiplayer")
+			.. " | " .. player.GetCount() .. " players | " .. (me:IsAdmin() and "admin" or "not admin"),
+		("settings: enabled %d adminonly %d cooldown %d maxsize %d priority %d | blocked gamemodes '%s' addons '%s'"):format(
+			CV.enabled:GetInt(), CV.adminonly:GetInt(), CV.cooldown:GetInt(), CV.maxsize:GetInt(), CV.priority:GetInt(),
+			CV.gamemodes:GetString(), CV.addons:GetString()),
+		"my last skin: " .. tostring(last.wsid) .. " " .. tostring(last.mdl),
+		"players (userid: shared skin -> model on screen):",
+	}
+	for _, p in ipairs(player.GetAll()) do
+		out[#out + 1] = ("  %d%s: %s %s -> %s"):format(p:UserID(), p == me and " (me)" or "",
+			p:GetNWString("skinshare_wsid", "-"), p:GetNWString("skinshare_mdl", ""), p:GetModel())
+	end
+	out[#out + 1] = "log:"
+	for _, l in ipairs(SkinShareLog) do out[#out + 1] = "  " .. l end
+	local text = table.concat(out, "\n")
+	return #text > 7500 and text:sub(-7500) or text -- límite de un post en las discusiones de Steam
+end
+
 local function slider(parent, label, min, max, decimals, val, onChange)
 	local s = parent:Add("DNumSlider")
 	s:Dock(TOP) s:SetText(label) s:SetDark(true) s:SetDecimals(decimals) s:SetMinMax(min, max) s:SetValue(val)
@@ -495,6 +619,17 @@ local ACCENT, ACCENT_HI = Color(60, 150, 245), Color(90, 175, 255)
 local BG, BG_PREVIEW = Color(24, 26, 31), Color(36, 39, 46)
 local SURFACE, SURFACE_HI, SURFACE_LO = Color(44, 47, 55), Color(58, 62, 72), Color(32, 34, 40)
 local TEXT, TEXT_DIM = Color(230, 232, 236), Color(150, 155, 165)
+
+-- letra más grande que DermaDefault (13 px), se ve mejor en pantallas grandes
+surface.CreateFont("SkinShare", { font = "Roboto", size = 17, weight = 500, extended = true })
+surface.CreateFont("SkinShareBold", { font = "Roboto", size = 17, weight = 800, extended = true })
+local FONTS = { DermaDefault = "SkinShare", DermaDefaultBold = "SkinShareBold" }
+-- los controles de Derma traen DermaDefault de fábrica: se cambia en todos los hijos de la ventana
+local function bigFonts(p)
+	local font = p.GetFont and FONTS[p:GetFont() or ""]
+	if font then p:SetFont(font) end
+	for _, c in ipairs(p:GetChildren()) do bigFonts(c) end
+end
 
 local SKIN = { PrintName = "SkinShare", Author = "SkinShare", DermaVersion = 1 } -- DefineSkin hereda de Default
 SKIN.colTextEntryText, SKIN.colTextEntryTextPlaceholder = TEXT, TEXT_DIM
@@ -521,7 +656,7 @@ function SKIN:PaintButton(p, w, h)
 end
 function SKIN:PaintWindowCloseButton(p, w, h)
 	if p.Hovered then draw.RoundedBox(4, 4, 2, w - 8, h - 6, Color(200, 60, 60)) end
-	draw.SimpleText("✕", "DermaDefaultBold", w / 2, h / 2 - 2, TEXT, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText("✕", "SkinShareBold", w / 2, h / 2 - 2, TEXT, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 end
 function SKIN:PaintWindowMinimizeButton() end
 function SKIN:PaintWindowMaximizeButton() end
@@ -580,7 +715,7 @@ end
 
 local function button(parent, text, dock, onClick)
 	local b = parent:Add("DButton")
-	b:Dock(dock) b:DockMargin(2, 0, 2, 0) b:SetText(text) b.DoClick = onClick
+	b:Dock(dock) b:DockMargin(2, 0, 2, 0) b:SetText(text) b.DoClick = onClick b:SetTextColor(TEXT)
 	if dock ~= FILL then b:SetWide(110) end
 	return b
 end
@@ -594,6 +729,14 @@ concommand.Add("skinshare", function()
 	local f = vgui.Create("DFrame")
 	f:SetSize(math.min(ScrW() - 16, 960), math.min(ScrH() - 16, 700)) f:Center()
 	f:SetTitle("SkinShare v" .. VERSION) f:MakePopup()
+	-- también los que se crean después (grilla, favoritos, admin); cada medio segundo es barato
+	local nextFonts = 0
+	f.Think = function(s)
+		baseclass.Get("DFrame").Think(s)
+		if RealTime() < nextFonts then return end
+		nextFonts = RealTime() + 0.5
+		bigFonts(s)
+	end
 	f:DockPadding(8, 32, 8, 8) f:SetSkin("SkinShare")
 
 	local right = f:Add("DPanel")
@@ -701,8 +844,8 @@ concommand.Add("skinshare", function()
 			local t = c:Add("DPanel")
 			t:Dock(FILL) t:DockMargin(10, 0, 0, 0) t.top, t.bottom = top, bottom
 			t.Paint = function(s, _, h)
-				draw.SimpleText(s.top, "DermaDefaultBold", 0, h / 2 - 1, TEXT, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
-				draw.SimpleText(s.bottom, "DermaDefault", 0, h / 2 + 1, TEXT_DIM, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+				draw.SimpleText(s.top, "SkinShareBold", 0, h / 2 - 1, TEXT, TEXT_ALIGN_LEFT, TEXT_ALIGN_BOTTOM)
+				draw.SimpleText(s.bottom, "SkinShare", 0, h / 2 + 1, TEXT_DIM, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 			end
 			return t
 		end
@@ -804,7 +947,7 @@ concommand.Add("skinshare", function()
 	function preview:Paint(w, h)
 		draw.RoundedBox(8, 0, 0, w, h, BG_PREVIEW)
 		basePaint(self, w, h)
-		draw.SimpleText(T("hint"), "DermaDefault", 10, 8, Color(255, 255, 255, 110))
+		draw.SimpleText(T("hint"), "SkinShare", 10, 8, Color(255, 255, 255, 110))
 		if sel.mdl then
 			draw.SimpleTextOutlined(list[sel.mdl] or string.StripExtension(string.GetFileFromFilename(sel.mdl)), "DermaLarge",
 				w / 2, h - 12, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, Color(0, 0, 0, 160))
@@ -882,7 +1025,7 @@ concommand.Add("skinshare", function()
 		for cat, mdls in SortedPairs(byCat) do
 			local label = grid:Add("DLabel")
 			label.OwnLine = true
-			label:SetFont("DermaDefaultBold") label:SetText(cat) label:SetTextColor(TEXT_DIM) label:SetTall(22) label:SizeToContentsX()
+			label:SetFont("SkinShareBold") label:SetText(cat) label:SetTextColor(TEXT_DIM) label:SetTall(22) label:SizeToContentsX()
 			for mdl, name in SortedPairsByValue(mdls) do
 				local icon = grid:Add("SpawnIcon")
 				icon:SetSize(72, 72) icon:SetModel(mdl) icon:SetTooltip(name)
@@ -912,7 +1055,7 @@ concommand.Add("skinshare", function()
 			local over = icon.PaintOver
 			icon.PaintOver = function(s, w, h)
 				if over then over(s, w, h) end
-				draw.SimpleTextOutlined(fav.name, "DermaDefaultBold", w / 2, h - 4, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, color_black)
+				draw.SimpleTextOutlined(fav.name, "SkinShareBold", w / 2, h - 4, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_BOTTOM, 1, color_black)
 			end
 			icon.DoClick = function() load(fav.cfg) end
 			icon.DoRightClick = function()
@@ -962,6 +1105,19 @@ concommand.Add("skinshare", function()
 		timer.Simple(0, function() RunConsoleCommand("skinshare") end)
 	end)
 	langBtn:SetWide(40)
+	-- en la barra de título, junto a cerrar
+	local bug = f:Add("DImageButton")
+	bug:SetImage("icon16/bug.png") bug:SetSize(16, 16) bug:SetTooltip(T("report"))
+	bug.DoClick = function()
+		local text = report()
+		SetClipboardText("[code]" .. text .. "[/code]")
+		file.Write("skinshare_report.txt", text)
+		notification.AddLegacy(T("reportDone"), NOTIFY_HINT, 8)
+		chat.AddText(Color(90, 175, 255), "[SkinShare] ", color_white, T("reportDone"))
+		gui.OpenURL(BUGS)
+	end
+	local layout = f.PerformLayout
+	f.PerformLayout = function(s, w, h) layout(s, w, h) bug:SetPos(w - 31 - 4 - 24, 4) end
 	button(bar, T("reset"), LEFT, function() if sel.mdl then pick(sel.mdl) end end)
 	local dice = button(bar, "", LEFT, function()
 		local pool = {}
@@ -978,7 +1134,7 @@ concommand.Add("skinshare", function()
 			surface.PlaySound("buttons/button14.wav")
 		end
 	end)
-	applyBtn:SetFont("DermaDefaultBold") applyBtn:SetTextColor(color_white)
+	applyBtn:SetFont("SkinShareBold") applyBtn:SetTextColor(color_white)
 	applyBtn.Paint = function(s, w, h) draw.RoundedBox(4, 0, 0, w, h, s:IsHovered() and ACCENT_HI or ACCENT) end
 
 	derma.RefreshSkins() -- los paneles creados sin padre cachearon el skin Default

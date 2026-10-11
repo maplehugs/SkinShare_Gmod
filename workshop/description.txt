@@ -16,7 +16,7 @@ Want the other mod to win instead? Admins can untick [b]Override other playermod
 [list]
 [*][b]Built for peer-to-peer.[/b] Host from the main menu like always. Only the host needs this addon; friends get it automatically when they join. Dedicated servers work too.
 [*][b]Use YOUR skins on anyone's game.[/b] The menu lists playermodels from your own subscribed addons, even ones the host has never seen.
-[*][b]Everyone sees you, not an ERROR.[/b] Other players download your skin from the Workshop on the fly, and it's only applied once they've mounted it.
+[*][b]Everyone sees you, not an ERROR.[/b] Other players download your skin from the Workshop on the fly (plus its Required items, like separate texture packs), and it's only applied once they've mounted it.
 [*][b]Works in every gamemode.[/b] TTT, Sandbox, Murder and more. Your skin is enforced over the gamemode's model and stays through respawns and new rounds. Non-playermodels (like Prop Hunt props) are left alone.
 [*][b]Remembers you.[/b] Your last skin is saved on your PC and reapplied every time you join, even after restarting GMod or coming back another day.
 [*][b]Full customization:[/b]
@@ -77,8 +77,11 @@ No. Only the host does. The menu is sent to everyone when they join.
 [b]My skin doesn't show up in the list.[/b]
 Make sure the addon is enabled in your Addons menu, then run [b]skinshare_debug[/b] in the console and check that it's listed.
 
+[b]Something doesn't work?[/b]
+Click the [b]bug icon[/b] next to the close button in the menu. It copies an error report and opens the Bug reports discussion: paste it there (Ctrl+V).
+
 [b]Can anyone make everyone download anything?[/b]
-No. Only public Workshop items tagged "Model" and up to 300 MB (configurable) are shared, and admins can block any addon. Texture or sound replacement packs can't be pushed on other players.
+No. Only public Workshop items up to 300 MB (configurable) are shared, and admins can block any addon. An addon that would overwrite files already in the game (texture, sound or model replacement packs) is never mounted on other players.
 
 [h1]Credits[/h1]
 The menu layout is inspired by [url=https://steamcommunity.com/sharedfiles/filedetails/?id=504945881]Enhanced PlayerModel Selector[/url] by LibertyForce. SkinShare is a separate implementation built around sharing skins between players.
@@ -94,6 +97,7 @@ Con SkinShare escribes [b]!skin[/b] en el chat, eliges cualquier skin de TUS add
 [*][b]Funciona en TTT y en cualquier modo:[/b] la skin se mantiene entre rondas.
 [*][b]Se acuerda de ti:[/b] tu skin se guarda y se te pone sola cada vez que entras, aunque reinicies GMod.
 [*]Preview 3D, modelos por categoría, bodygroups, cara, colores, manos y favoritos. Menú en español e inglés.
+[*][b]¿Algo no funciona?[/b] Dale al ícono del bicho junto a cerrar: copia un reporte y abre Reportar errores para que lo pegues ahí.
 [*][b]¿Usas otro selector (Enhanced PlayerModel Selector)?[/b] La skin de SkinShare gana por defecto. Para que gane el otro: [b]!skin > Admin > Server[/b], o [b]sv_skinshare_priority 0[/b].
 [*][b]Panel de admin:[/b] ver la skin de cada jugador y, con un clic, quitársela, bloquearla para todos o no dejar que use skins. También apagarlo en un modo de juego (como Murder) o dejarlo solo para admins.
 [/list]

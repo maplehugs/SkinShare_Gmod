@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.14.0 — 2026-10-11
+- Fix: skins con las texturas en otro addon (un "Texture Pack" en Required items del Workshop) se veían sin texturas para los demás. Ahora también se descargan y montan los Required items, antes que el modelo (sin dependencias de dependencias, y cuentan para el tamaño máximo).
+- Fix: skins cuya ruta tiene espacios (p. ej. `models/kuge/private military contractor/...`) el server las rechazaba en silencio. Ahora se aceptan, y si el server rechaza una skin te avisa en el chat.
+- Fix: elegir una skin de un addon tuyo más pesado que el tamaño máximo tardaba 60 s en aplicarse. Los addons a los que estás suscrito ya están montados y no se revisan.
+- Ya no hace falta el tag "Model" en el Workshop (p. ej. Bonnie de Fortnite no lo tiene). En su lugar, no se monta en los demás ningún addon que pisaría archivos que ya existen en el juego (packs que reemplazan texturas, sonidos o modelos).
+- Una skin ya montada en esta sesión no se vuelve a descargar ni montar.
+- Botón de errores (bicho, junto a cerrar): copia un reporte (versión, 32/64 bits, settings, skins de cada jugador y los últimos eventos) y abre la discusión de Bug reports para pegarlo. También se guarda en `data/skinshare_report.txt`.
+- Letra más grande en todo el menú y texto del botón EN/ES visible en el fondo oscuro.
+
 ## v0.13.0 — 2026-10-10
 - Prioridad sobre otros selectores de playermodel: si Enhanced PlayerModel Selector (u otro addon) fuerza los modelos, ahora gana la skin de SkinShare. Quien no tenga skin de SkinShare se queda con el modelo del otro addon. Casilla en Admin > Server (`sv_skinshare_priority`, activada por defecto).
 - Modelos agrupados por categoría, como el selector nuevo de Sandbox: la categoría que registra el addon o, si no tiene, el nombre del addon. El buscador también busca por categoría.
